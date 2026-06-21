@@ -8,7 +8,6 @@ from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from urllib.parse import parse_qs
-
 import chat.routing
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
@@ -29,20 +28,12 @@ class TokenAuthMiddleware:
         self.inner = inner
 
     async def __call__(self, scope, receive, send):
-        # Parse query string token=...
         qs = parse_qs(scope.get('query_string', b'').decode('utf-8'))
         token_key = None
         if 'token' in qs and qs['token']:
             token_key = qs['token'][0]
 
-        # Debug: confirm token query param received
-        if token_key:
-            print(f'WS token received: {token_key[:8]}...')
-        else:
-            print('WS token missing from query string')
-
         user = AnonymousUser()
-
         if token_key:
             user = await _get_user_from_token(token_key)
 

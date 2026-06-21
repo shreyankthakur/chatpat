@@ -57,7 +57,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION  = 'core.asgi.application'
 
-# Database — PostgreSQL on Railway, SQLite locally
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     import dj_database_url
@@ -72,7 +71,6 @@ else:
         }
     }
 
-# Redis — Railway Redis or local
 REDIS_URL = os.environ.get('REDIS_URL', '')
 if REDIS_URL:
     CHANNEL_LAYERS = {
@@ -106,8 +104,8 @@ STATIC_URL  = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-MEDIA_URL   = '/media/'
-MEDIA_ROOT  = BASE_DIR / 'media'
+MEDIA_URL  = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
