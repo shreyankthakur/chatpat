@@ -3,7 +3,7 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-chatpat-key-2024')
+SECRET_KEY = 'django-insecure-chatpat-key-2024-abc123xyz'
 
 DEBUG = False
 
