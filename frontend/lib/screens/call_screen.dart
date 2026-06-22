@@ -27,16 +27,19 @@ class CallScreen extends StatefulWidget {
 }
 
 class _CallScreenState extends State<CallScreen> {
-  bool   _muted      = false;
-  bool   _speakerOn  = true;
-  bool   _cameraOff  = false;
-  String _status     = 'Calling...';
-  int    _seconds    = 0;
+  final _localRenderer  = RTCVideoRenderer();
+  final _remoteRenderer = RTCVideoRenderer();
+
+  bool   _muted     = false;
+  bool   _speakerOn = true;
+  bool   _cameraOff = false;
+  String _status    = 'Calling...';
+  int    _seconds   = 0;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isVideo) widget.callService.initRenderers();
+    if (widget.isVideo) _initRenderers();
     _setupCallbacks();
     if (widget.isCaller) {
       setState(() => _status = 'Ringing...');
@@ -46,9 +49,24 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
+  Future<void> _initRenderers() async {
+    await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
+    // hook renderers into call service
+    widget.callService.onLocalStream = (stream) {
+      if (mounted) setState(() => _localRenderer.srcObject = stream);
+    };
+    widget.callService.onRemoteStream = (stream) {
+      if (mounted) setState(() => _remoteRenderer.srcObject = stream);
+    };
+  }
+
   @override
   void dispose() {
-    if (widget.isVideo) widget.callService.disposeRenderers();
+    if (widget.isVideo) {
+      _localRenderer.dispose();
+      _remoteRenderer.dispose();
+    }
     super.dispose();
   }
 
@@ -99,63 +117,49 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  // ── Video Call UI ──────────────────────────────────────
   Widget _buildVideoCall() {
     return Stack(
       children: [
-        // Remote video (full screen)
         Positioned.fill(
           child: RTCVideoView(
-            widget.callService.remoteRenderer,
+            _remoteRenderer,
             objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
           ),
         ),
-
-        // Local video (picture-in-picture)
         Positioned(
           top: 50, right: 16,
           width: 100, height: 140,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: RTCVideoView(
-              widget.callService.localRenderer,
+              _localRenderer,
               mirror: true,
               objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
             ),
           ),
         ),
-
-        // Top bar
         Positioned(
           top: 0, left: 0, right: 0,
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Text(
-                    widget.otherName,
+              child: Row(children: [
+                Text(widget.otherName,
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    _status == 'Connected'
-                        ? _formatDuration()
-                        : _status,
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                Text(
+                  _status == 'Connected' ? _formatDuration() : _status,
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 14),
+                ),
+              ]),
             ),
           ),
         ),
-
-        // Bottom controls
         Positioned(
           bottom: 40, left: 0, right: 0,
           child: Row(
@@ -180,9 +184,7 @@ class _CallScreenState extends State<CallScreen> {
                 size:  72,
               ),
               _btn(
-                icon:  _cameraOff
-                    ? Icons.videocam_off
-                    : Icons.videocam,
+                icon:  _cameraOff ? Icons.videocam_off : Icons.videocam,
                 label: _cameraOff ? 'Cam Off' : 'Cam On',
                 color: Colors.white,
                 bg:    _cameraOff ? Colors.red : Colors.white24,
@@ -205,7 +207,6 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  // ── Voice Call UI ──────────────────────────────────────
   Widget _buildVoiceCall() {
     return SafeArea(
       child: Column(
@@ -218,34 +219,28 @@ class _CallScreenState extends State<CallScreen> {
               widget.otherName.isNotEmpty
                   ? widget.otherName[0].toUpperCase()
                   : '?',
-              style: const TextStyle(
-                  fontSize: 55, color: Colors.white),
+              style: const TextStyle(fontSize: 55, color: Colors.white),
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            widget.otherName,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold),
-          ),
+          Text(widget.otherName,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text(
             _status == 'Connected' ? _formatDuration() : _status,
-            style: const TextStyle(
-                color: Colors.white60, fontSize: 18),
+            style: const TextStyle(color: Colors.white60, fontSize: 18),
           ),
           const SizedBox(height: 8),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.call,
-                  color: Colors.white38, size: 18),
-              const SizedBox(width: 4),
-              const Text('Voice Call',
-                  style: TextStyle(
-                      color: Colors.white38, fontSize: 14)),
+              Icon(Icons.call, color: Colors.white38, size: 18),
+              SizedBox(width: 4),
+              Text('Voice Call',
+                  style: TextStyle(color: Colors.white38, fontSize: 14)),
             ],
           ),
           const Spacer(),
@@ -273,14 +268,11 @@ class _CallScreenState extends State<CallScreen> {
                   size:  72,
                 ),
                 _btn(
-                  icon:  _speakerOn
-                      ? Icons.volume_up
-                      : Icons.volume_off,
+                  icon:  _speakerOn ? Icons.volume_up : Icons.volume_off,
                   label: _speakerOn ? 'Speaker' : 'Earpiece',
                   color: _speakerOn ? Colors.white : Colors.grey,
                   bg:    Colors.white24,
-                  onTap: () =>
-                      setState(() => _speakerOn = !_speakerOn),
+                  onTap: () => setState(() => _speakerOn = !_speakerOn),
                 ),
               ],
             ),
@@ -303,14 +295,12 @@ class _CallScreenState extends State<CallScreen> {
           onTap: onTap,
           child: Container(
             width: size, height: size,
-            decoration: BoxDecoration(
-                color: bg, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
             child: Icon(icon, color: color, size: size * 0.45),
           ),
         ),
         const SizedBox(height: 6),
         Text(label,
-            style: const TextStyle(
-                color: Colors.white54, fontSize: 12)),
+            style: const TextStyle(color: Colors.white54, fontSize: 12)),
       ]);
 }
