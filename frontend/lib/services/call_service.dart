@@ -11,9 +11,9 @@ class CallService {
 
   int?  _targetId;
   int?  _roomId;
-  bool  _isVideo = false;
+  bool  _isVideo  = false;
+  bool  _disposed = false;
 
-  // local/remote renderers for video
   final localRenderer  = RTCVideoRenderer();
   final remoteRenderer = RTCVideoRenderer();
 
@@ -23,11 +23,16 @@ class CallService {
   Function()?    onCallEnded;
 
   Future<void> initRenderers() async {
+    _disposed = false;
     await localRenderer.initialize();
     await remoteRenderer.initialize();
   }
 
-  void disposeRenderers() {
+  Future<void> disposeRenderers() async {
+    _disposed = true;
+    localRenderer.srcObject  = null;
+    remoteRenderer.srcObject = null;
+    await Future.delayed(Duration.zero);
     localRenderer.dispose();
     remoteRenderer.dispose();
   }
@@ -171,7 +176,6 @@ class CallService {
 
     _peerConnection = await createPeerConnection(config);
 
-    // get mic + camera if video
     _localStream = await navigator.mediaDevices.getUserMedia({
       'audio': true,
       'video': _isVideo
@@ -179,7 +183,12 @@ class CallService {
           : false,
     });
 
-    // show local video
+    if (_disposed) {
+      _localStream?.getTracks().forEach((t) => t.stop());
+      _localStream = null;
+      return;
+    }
+
     if (_isVideo) {
       localRenderer.srcObject = _localStream;
     }
@@ -188,14 +197,15 @@ class CallService {
       await _peerConnection!.addTrack(track, _localStream!);
     }
 
-    // show remote video
     _peerConnection!.onTrack = (event) {
+      if (_disposed) return;
       if (event.streams.isNotEmpty) {
         remoteRenderer.srcObject = event.streams[0];
       }
     };
 
     _peerConnection!.onIceCandidate = (candidate) {
+      if (_disposed) return;
       if (candidate.candidate != null) {
         _send({
           'type':      'ice_candidate',
@@ -219,10 +229,12 @@ class CallService {
     if (_peerConnection == null) {
       await _initPeerConnection(targetId, roomId, isCaller: true);
     }
+    if (_disposed) return;
     final offer = await _peerConnection!.createOffer({
       'offerToReceiveAudio': 1,
       'offerToReceiveVideo': _isVideo ? 1 : 0,
     });
+    if (_disposed) return;
     await _peerConnection!.setLocalDescription(offer);
     _send({
       'type':      'offer',
@@ -240,7 +252,9 @@ class CallService {
     await _peerConnection!.setRemoteDescription(
       RTCSessionDescription(data['sdp'], data['type']),
     );
+    if (_disposed) return;
     final answer = await _peerConnection!.createAnswer();
+    if (_disposed) return;
     await _peerConnection!.setLocalDescription(answer);
     _send({
       'type':      'answer',
@@ -254,12 +268,14 @@ class CallService {
   }
 
   Future<void> _handleAnswer(Map data) async {
+    if (_disposed) return;
     await _peerConnection?.setRemoteDescription(
       RTCSessionDescription(data['sdp'], data['type']),
     );
   }
 
   Future<void> _handleIceCandidate(Map data) async {
+    if (_disposed) return;
     await _peerConnection?.addCandidate(
       RTCIceCandidate(
         data['candidate'],
@@ -270,10 +286,15 @@ class CallService {
   }
 
   Future<void> _cleanup() async {
-    await _localStream?.dispose();
-    await _peerConnection?.close();
+    _disposed = true;
+
     localRenderer.srcObject  = null;
     remoteRenderer.srcObject = null;
+
+    _localStream?.getTracks().forEach((t) => t.stop());
+    await _localStream?.dispose();
+    await _peerConnection?.close();
+
     _localStream    = null;
     _peerConnection = null;
     _targetId       = null;
