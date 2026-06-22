@@ -28,14 +28,11 @@ class IncomingCallScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 40),
-
-            // Animated ring icon
             Container(
               width: 160, height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                    color: Colors.white24, width: 3),
+                border: Border.all(color: Colors.white24, width: 3),
               ),
               child: CircleAvatar(
                 radius: 70,
@@ -50,14 +47,12 @@ class IncomingCallScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-
             Text(callerName,
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-
             Text(
               isVideo
                   ? 'Incoming Video Call...'
@@ -66,15 +61,11 @@ class IncomingCallScreen extends StatelessWidget {
                   color: Colors.white70, fontSize: 16),
             ),
             const SizedBox(height: 8),
-
             Icon(
               isVideo ? Icons.videocam : Icons.phone_in_talk,
               color: Colors.white38, size: 28,
             ),
-
             const Spacer(),
-
-            // Buttons
             Padding(
               padding: const EdgeInsets.only(bottom: 60),
               child: Row(
@@ -105,7 +96,11 @@ class IncomingCallScreen extends StatelessWidget {
                   Column(children: [
                     GestureDetector(
                       onTap: () {
-                        callService.acceptCall(callerId, roomId);
+                        callService.acceptCall(
+                          callerId,
+                          roomId,
+                          video: isVideo, // ← pass video flag
+                        );
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../services/call_service.dart';
 
 class CallScreen extends StatefulWidget {
@@ -21,18 +22,21 @@ class CallScreen extends StatefulWidget {
     required this.callService,
   });
 
-  @override State<CallScreen> createState() => _CallScreenState();
+  @override
+  State<CallScreen> createState() => _CallScreenState();
 }
 
 class _CallScreenState extends State<CallScreen> {
-  bool   _muted     = false;
-  bool   _speakerOn = true;
-  String _status    = 'Calling...';
-  int    _seconds   = 0;
+  bool   _muted      = false;
+  bool   _speakerOn  = true;
+  bool   _cameraOff  = false;
+  String _status     = 'Calling...';
+  int    _seconds    = 0;
 
   @override
   void initState() {
     super.initState();
+    if (widget.isVideo) widget.callService.initRenderers();
     _setupCallbacks();
     if (widget.isCaller) {
       setState(() => _status = 'Ringing...');
@@ -42,6 +46,12 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    if (widget.isVideo) widget.callService.disposeRenderers();
+    super.dispose();
+  }
+
   void _setupCallbacks() {
     widget.callService.onCallAccepted = () {
       if (mounted) {
@@ -49,7 +59,6 @@ class _CallScreenState extends State<CallScreen> {
         _startTimer();
       }
     };
-
     widget.callService.onCallRejected = () {
       if (mounted) {
         setState(() => _status = 'Call Rejected');
@@ -57,7 +66,6 @@ class _CallScreenState extends State<CallScreen> {
             () => Navigator.pop(context));
       }
     };
-
     widget.callService.onCallEnded = () {
       if (mounted) Navigator.pop(context);
     };
@@ -87,108 +95,197 @@ class _CallScreenState extends State<CallScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 60),
+      body: widget.isVideo ? _buildVideoCall() : _buildVoiceCall(),
+    );
+  }
 
-            // Avatar
-            CircleAvatar(
-              radius: 70,
-              backgroundColor: const Color(0xFFE53935),
-              child: Text(
-                widget.otherName.isNotEmpty
-                    ? widget.otherName[0].toUpperCase()
-                    : '?',
-                style: const TextStyle(
-                    fontSize: 55, color: Colors.white),
-              ),
+  // ── Video Call UI ──────────────────────────────────────
+  Widget _buildVideoCall() {
+    return Stack(
+      children: [
+        // Remote video (full screen)
+        Positioned.fill(
+          child: RTCVideoView(
+            widget.callService.remoteRenderer,
+            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+          ),
+        ),
+
+        // Local video (picture-in-picture)
+        Positioned(
+          top: 50, right: 16,
+          width: 100, height: 140,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: RTCVideoView(
+              widget.callService.localRenderer,
+              mirror: true,
+              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
             ),
-            const SizedBox(height: 24),
+          ),
+        ),
 
-            // Name
-            Text(
-              widget.otherName,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-
-            // Status / timer
-            Text(
-              _status == 'Connected'
-                  ? _formatDuration()
-                  : _status,
-              style: const TextStyle(
-                  color: Colors.white60, fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-
-            // Call type
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  widget.isVideo ? Icons.videocam : Icons.call,
-                  color: Colors.white38, size: 18,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  widget.isVideo ? 'Video Call' : 'Voice Call',
-                  style: const TextStyle(
-                      color: Colors.white38, fontSize: 14),
-                ),
-              ],
-            ),
-
-            const Spacer(),
-
-            // Controls
-            Padding(
-              padding: const EdgeInsets.only(bottom: 60),
+        // Top bar
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Mute
-                  _btn(
-                    icon:  _muted ? Icons.mic_off : Icons.mic,
-                    label: _muted ? 'Unmute' : 'Mute',
-                    color: _muted ? Colors.grey : Colors.white,
-                    bg:    Colors.white24,
-                    onTap: () {
-                      setState(() => _muted = !_muted);
-                      widget.callService.toggleMute(_muted);
-                    },
+                  Text(
+                    widget.otherName,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold),
                   ),
-
-                  // End call
-                  _btn(
-                    icon:  Icons.call_end,
-                    label: 'End',
-                    color: Colors.white,
-                    bg:    Colors.red,
-                    onTap: _endCall,
-                    size:  72,
-                  ),
-
-                  // Speaker
-                  _btn(
-                    icon:  _speakerOn
-                        ? Icons.volume_up
-                        : Icons.volume_off,
-                    label: _speakerOn ? 'Speaker' : 'Earpiece',
-                    color: _speakerOn ? Colors.white : Colors.grey,
-                    bg:    Colors.white24,
-                    onTap: () =>
-                        setState(() => _speakerOn = !_speakerOn),
+                  const SizedBox(width: 12),
+                  Text(
+                    _status == 'Connected'
+                        ? _formatDuration()
+                        : _status,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
+
+        // Bottom controls
+        Positioned(
+          bottom: 40, left: 0, right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _btn(
+                icon:  _muted ? Icons.mic_off : Icons.mic,
+                label: _muted ? 'Unmute' : 'Mute',
+                color: Colors.white,
+                bg:    _muted ? Colors.red : Colors.white24,
+                onTap: () {
+                  setState(() => _muted = !_muted);
+                  widget.callService.toggleMute(_muted);
+                },
+              ),
+              _btn(
+                icon:  Icons.call_end,
+                label: 'End',
+                color: Colors.white,
+                bg:    Colors.red,
+                onTap: _endCall,
+                size:  72,
+              ),
+              _btn(
+                icon:  _cameraOff
+                    ? Icons.videocam_off
+                    : Icons.videocam,
+                label: _cameraOff ? 'Cam Off' : 'Cam On',
+                color: Colors.white,
+                bg:    _cameraOff ? Colors.red : Colors.white24,
+                onTap: () {
+                  setState(() => _cameraOff = !_cameraOff);
+                  widget.callService.toggleCamera(_cameraOff);
+                },
+              ),
+              _btn(
+                icon:  Icons.flip_camera_android,
+                label: 'Flip',
+                color: Colors.white,
+                bg:    Colors.white24,
+                onTap: () => widget.callService.switchCamera(),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Voice Call UI ──────────────────────────────────────
+  Widget _buildVoiceCall() {
+    return SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 60),
+          CircleAvatar(
+            radius: 70,
+            backgroundColor: const Color(0xFFE53935),
+            child: Text(
+              widget.otherName.isNotEmpty
+                  ? widget.otherName[0].toUpperCase()
+                  : '?',
+              style: const TextStyle(
+                  fontSize: 55, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            widget.otherName,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _status == 'Connected' ? _formatDuration() : _status,
+            style: const TextStyle(
+                color: Colors.white60, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.call,
+                  color: Colors.white38, size: 18),
+              const SizedBox(width: 4),
+              const Text('Voice Call',
+                  style: TextStyle(
+                      color: Colors.white38, fontSize: 14)),
+            ],
+          ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 60),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _btn(
+                  icon:  _muted ? Icons.mic_off : Icons.mic,
+                  label: _muted ? 'Unmute' : 'Mute',
+                  color: _muted ? Colors.grey : Colors.white,
+                  bg:    Colors.white24,
+                  onTap: () {
+                    setState(() => _muted = !_muted);
+                    widget.callService.toggleMute(_muted);
+                  },
+                ),
+                _btn(
+                  icon:  Icons.call_end,
+                  label: 'End',
+                  color: Colors.white,
+                  bg:    Colors.red,
+                  onTap: _endCall,
+                  size:  72,
+                ),
+                _btn(
+                  icon:  _speakerOn
+                      ? Icons.volume_up
+                      : Icons.volume_off,
+                  label: _speakerOn ? 'Speaker' : 'Earpiece',
+                  color: _speakerOn ? Colors.white : Colors.grey,
+                  bg:    Colors.white24,
+                  onTap: () =>
+                      setState(() => _speakerOn = !_speakerOn),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -206,8 +303,8 @@ class _CallScreenState extends State<CallScreen> {
           onTap: onTap,
           child: Container(
             width: size, height: size,
-            decoration:
-                BoxDecoration(color: bg, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+                color: bg, shape: BoxShape.circle),
             child: Icon(icon, color: color, size: size * 0.45),
           ),
         ),

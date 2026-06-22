@@ -9,13 +9,28 @@ class CallService {
   RTCPeerConnection? _peerConnection;
   MediaStream?       _localStream;
 
-  int? _targetId;
-  int? _roomId;
+  int?  _targetId;
+  int?  _roomId;
+  bool  _isVideo = false;
+
+  // local/remote renderers for video
+  final localRenderer  = RTCVideoRenderer();
+  final remoteRenderer = RTCVideoRenderer();
 
   Function(Map)? onCallReceived;
   Function()?    onCallAccepted;
   Function()?    onCallRejected;
   Function()?    onCallEnded;
+
+  Future<void> initRenderers() async {
+    await localRenderer.initialize();
+    await remoteRenderer.initialize();
+  }
+
+  void disposeRenderers() {
+    localRenderer.dispose();
+    remoteRenderer.dispose();
+  }
 
   void connect(int userId, {String? token}) {
     final uri = Uri.parse('$WS_URL/ws/call/$userId/').replace(
@@ -50,7 +65,6 @@ class CallService {
         break;
       case 'call_accepted':
         onCallAccepted?.call();
-        // callee accepted — caller now creates offer
         if (_targetId != null && _roomId != null) {
           _createOffer(_roomId!, targetId: _targetId!);
         }
@@ -83,7 +97,6 @@ class CallService {
     }
   }
 
-  // ── Signaling ──────────────────────────────────────────
   void callUser({
     required int    callerId,
     required String callerName,
@@ -93,6 +106,7 @@ class CallService {
   }) {
     _targetId = targetId;
     _roomId   = roomId;
+    _isVideo  = video;
     _send({
       'type':        'call_user',
       'caller_id':   callerId,
@@ -101,19 +115,18 @@ class CallService {
       'room_id':     roomId,
       'call_type':   video ? 'video' : 'audio',
     });
-    // caller sets up peer connection immediately
     _initPeerConnection(targetId, roomId, isCaller: true);
   }
 
-  void acceptCall(int targetId, int roomId) {
+  void acceptCall(int targetId, int roomId, {bool video = false}) {
     _targetId = targetId;
     _roomId   = roomId;
+    _isVideo  = video;
     _send({
       'type':      'call_accepted',
       'target_id': targetId,
       'room_id':   roomId,
     });
-    // callee sets up peer connection — waits for offer
     _initPeerConnection(targetId, roomId, isCaller: false);
   }
 
@@ -134,10 +147,19 @@ class CallService {
 
   void toggleMute(bool muted) {
     _localStream?.getAudioTracks().forEach((t) => t.enabled = !muted);
-    debugPrint('Mute: $muted');
   }
 
-  // ── WebRTC ─────────────────────────────────────────────
+  void toggleCamera(bool off) {
+    _localStream?.getVideoTracks().forEach((t) => t.enabled = !off);
+  }
+
+  Future<void> switchCamera() async {
+    final tracks = _localStream?.getVideoTracks();
+    if (tracks != null && tracks.isNotEmpty) {
+      await Helper.switchCamera(tracks.first);
+    }
+  }
+
   Future<void> _initPeerConnection(
       int targetId, int roomId, {required bool isCaller}) async {
     final config = {
@@ -149,14 +171,29 @@ class CallService {
 
     _peerConnection = await createPeerConnection(config);
 
+    // get mic + camera if video
     _localStream = await navigator.mediaDevices.getUserMedia({
       'audio': true,
-      'video': false,
+      'video': _isVideo
+          ? {'facingMode': 'user', 'width': 640, 'height': 480}
+          : false,
     });
+
+    // show local video
+    if (_isVideo) {
+      localRenderer.srcObject = _localStream;
+    }
 
     for (final track in _localStream!.getTracks()) {
       await _peerConnection!.addTrack(track, _localStream!);
     }
+
+    // show remote video
+    _peerConnection!.onTrack = (event) {
+      if (event.streams.isNotEmpty) {
+        remoteRenderer.srcObject = event.streams[0];
+      }
+    };
 
     _peerConnection!.onIceCandidate = (candidate) {
       if (candidate.candidate != null) {
@@ -176,9 +213,6 @@ class CallService {
     _peerConnection!.onConnectionState = (state) {
       debugPrint('PeerConnection state: $state');
     };
-
-    // Only caller creates offer — after receiving call_accepted
-    // isCaller=true here just means we're ready; offer sent on call_accepted
   }
 
   Future<void> _createOffer(int roomId, {required int targetId}) async {
@@ -187,6 +221,7 @@ class CallService {
     }
     final offer = await _peerConnection!.createOffer({
       'offerToReceiveAudio': 1,
+      'offerToReceiveVideo': _isVideo ? 1 : 0,
     });
     await _peerConnection!.setLocalDescription(offer);
     _send({
@@ -209,7 +244,7 @@ class CallService {
     await _peerConnection!.setLocalDescription(answer);
     _send({
       'type':      'answer',
-      'target_id': _targetId, // ← send back to caller
+      'target_id': _targetId,
       'room_id':   roomId,
       'data': {
         'sdp':  answer.sdp,
@@ -237,10 +272,13 @@ class CallService {
   Future<void> _cleanup() async {
     await _localStream?.dispose();
     await _peerConnection?.close();
+    localRenderer.srcObject  = null;
+    remoteRenderer.srcObject = null;
     _localStream    = null;
     _peerConnection = null;
     _targetId       = null;
     _roomId         = null;
+    _isVideo        = false;
   }
 
   void disconnect() {
