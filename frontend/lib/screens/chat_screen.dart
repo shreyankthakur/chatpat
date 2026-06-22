@@ -38,7 +38,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final me   = auth.user;
     if (me == null) return;
 
-    _callService.connect(me.id, token: auth.token); // ← token passed here
+    _callService.connect(me.id, token: auth.token);
 
     _callService.onCallReceived = (data) {
       if (!mounted) return;

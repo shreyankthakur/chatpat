@@ -5,16 +5,18 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../constants.dart';
 
 class CallService {
-  WebSocketChannel?   _channel;
-  RTCPeerConnection?  _peerConnection;
-  MediaStream?        _localStream;
+  WebSocketChannel?  _channel;
+  RTCPeerConnection? _peerConnection;
+  MediaStream?       _localStream;
 
-  Function(Map)?  onCallReceived;
-  Function()?     onCallAccepted;
-  Function()?     onCallRejected;
-  Function()?     onCallEnded;
+  int? _targetId;
+  int? _roomId;
 
-  // ── WebSocket ──────────────────────────────────────────
+  Function(Map)? onCallReceived;
+  Function()?    onCallAccepted;
+  Function()?    onCallRejected;
+  Function()?    onCallEnded;
+
   void connect(int userId, {String? token}) {
     final uri = Uri.parse('$WS_URL/ws/call/$userId/').replace(
       queryParameters: {
@@ -48,10 +50,14 @@ class CallService {
         break;
       case 'call_accepted':
         onCallAccepted?.call();
-        _createOffer(msg['room_id']);
+        // callee accepted — caller now creates offer
+        if (_targetId != null && _roomId != null) {
+          _createOffer(_roomId!, targetId: _targetId!);
+        }
         break;
       case 'call_rejected':
         onCallRejected?.call();
+        _cleanup();
         break;
       case 'call_ended':
         onCallEnded?.call();
@@ -85,6 +91,8 @@ class CallService {
     required int    roomId,
     bool            video = false,
   }) {
+    _targetId = targetId;
+    _roomId   = roomId;
     _send({
       'type':        'call_user',
       'caller_id':   callerId,
@@ -93,14 +101,19 @@ class CallService {
       'room_id':     roomId,
       'call_type':   video ? 'video' : 'audio',
     });
+    // caller sets up peer connection immediately
+    _initPeerConnection(targetId, roomId, isCaller: true);
   }
 
   void acceptCall(int targetId, int roomId) {
+    _targetId = targetId;
+    _roomId   = roomId;
     _send({
       'type':      'call_accepted',
       'target_id': targetId,
       'room_id':   roomId,
     });
+    // callee sets up peer connection — waits for offer
     _initPeerConnection(targetId, roomId, isCaller: false);
   }
 
@@ -125,32 +138,26 @@ class CallService {
   }
 
   // ── WebRTC ─────────────────────────────────────────────
-  Future<void> initCaller(int targetId, int roomId) async {
-    await _initPeerConnection(targetId, roomId, isCaller: true);
-  }
-
   Future<void> _initPeerConnection(
       int targetId, int roomId, {required bool isCaller}) async {
     final config = {
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
         {'urls': 'stun:stun1.l.google.com:19302'},
-      ]
+      ],
     };
 
     _peerConnection = await createPeerConnection(config);
 
-    // Get microphone
     _localStream = await navigator.mediaDevices.getUserMedia({
       'audio': true,
       'video': false,
     });
 
-    _localStream!.getTracks().forEach((track) {
-      _peerConnection!.addTrack(track, _localStream!);
-    });
+    for (final track in _localStream!.getTracks()) {
+      await _peerConnection!.addTrack(track, _localStream!);
+    }
 
-    // ICE candidates
     _peerConnection!.onIceCandidate = (candidate) {
       if (candidate.candidate != null) {
         _send({
@@ -170,14 +177,17 @@ class CallService {
       debugPrint('PeerConnection state: $state');
     };
 
-    if (isCaller) {
-      await _createOffer(roomId, targetId: targetId);
-    }
+    // Only caller creates offer — after receiving call_accepted
+    // isCaller=true here just means we're ready; offer sent on call_accepted
   }
 
-  Future<void> _createOffer(dynamic roomId, {int? targetId}) async {
-    if (_peerConnection == null) return;
-    final offer = await _peerConnection!.createOffer({'offerToReceiveAudio': 1});
+  Future<void> _createOffer(int roomId, {required int targetId}) async {
+    if (_peerConnection == null) {
+      await _initPeerConnection(targetId, roomId, isCaller: true);
+    }
+    final offer = await _peerConnection!.createOffer({
+      'offerToReceiveAudio': 1,
+    });
     await _peerConnection!.setLocalDescription(offer);
     _send({
       'type':      'offer',
@@ -198,8 +208,9 @@ class CallService {
     final answer = await _peerConnection!.createAnswer();
     await _peerConnection!.setLocalDescription(answer);
     _send({
-      'type':    'answer',
-      'room_id': roomId,
+      'type':      'answer',
+      'target_id': _targetId, // ← send back to caller
+      'room_id':   roomId,
       'data': {
         'sdp':  answer.sdp,
         'type': answer.type,
@@ -226,8 +237,10 @@ class CallService {
   Future<void> _cleanup() async {
     await _localStream?.dispose();
     await _peerConnection?.close();
-    _localStream      = null;
-    _peerConnection   = null;
+    _localStream    = null;
+    _peerConnection = null;
+    _targetId       = null;
+    _roomId         = null;
   }
 
   void disconnect() {
