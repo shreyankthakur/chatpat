@@ -4,10 +4,13 @@ import 'package:intl/intl.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
+import '../services/call_service.dart';
 import '../models/message.dart';
+import 'call_screen.dart';
+import 'incoming_call_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  final int roomId;
+  final int                  roomId;
   final Map<String, dynamic> otherUser;
   const ChatScreen({super.key, required this.roomId, required this.otherUser});
   @override
@@ -15,17 +18,63 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final _ctrl = TextEditingController();
-  final _scroll = ScrollController();
-  final _ws = WebSocketService();
-  List<MessageModel> _msgs = [];
-  bool _wsReady = false;
+  final _ctrl        = TextEditingController();
+  final _scroll      = ScrollController();
+  final _ws          = WebSocketService();
+  final _callService = CallService();
+  List<MessageModel> _msgs    = [];
+  bool               _wsReady = false;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _connectWS();
+    _initCallService();
+  }
+
+  void _initCallService() {
+    final auth = context.read<AuthProvider>();
+    final me   = auth.user;
+    if (me == null) return;
+
+    _callService.connect(me.id, token: auth.token); // ← token passed here
+
+    _callService.onCallReceived = (data) {
+      if (!mounted) return;
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => IncomingCallScreen(
+          callData:    data,
+          myId:        me.id,
+          callService: _callService,
+        ),
+      ));
+    };
+  }
+
+  void _startCall({required bool video}) {
+    final me = context.read<AuthProvider>().user;
+    if (me == null) return;
+
+    _callService.callUser(
+      callerId:   me.id,
+      callerName: me.username,
+      targetId:   widget.otherUser['id'],
+      roomId:     widget.roomId,
+      video:      video,
+    );
+
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => CallScreen(
+        myId:        me.id,
+        otherId:     widget.otherUser['id'],
+        roomId:      widget.roomId,
+        otherName:   widget.otherUser['username'] ?? 'User',
+        isVideo:     video,
+        isCaller:    true,
+        callService: _callService,
+      ),
+    ));
   }
 
   void _connectWS() {
@@ -35,19 +84,18 @@ class _ChatScreenState extends State<ChatScreen> {
       _ws.onMessage = (data) {
         if (!mounted) return;
         setState(() {
-          _msgs.add(MessageModel.fromJson(Map<String, dynamic>.from(data)));
+          _msgs.add(MessageModel.fromJson(
+              Map<String, dynamic>.from(data)));
         });
         _scrollDown();
       };
       setState(() => _wsReady = true);
     } catch (e) {
       debugPrint('WebSocket error: $e');
-      // fallback — polling every 3 seconds if WS fails
       _startPolling();
     }
   }
 
-  // Polling fallback for web
   void _startPolling() async {
     while (mounted) {
       await Future.delayed(const Duration(seconds: 3));
@@ -58,6 +106,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _ws.disconnect();
+    _callService.disconnect();
     _ctrl.dispose();
     _scroll.dispose();
     super.dispose();
@@ -71,7 +120,8 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _msgs = data
-            .map((m) => MessageModel.fromJson(Map<String, dynamic>.from(m)))
+            .map((m) => MessageModel.fromJson(
+                Map<String, dynamic>.from(m)))
             .toList();
       });
       _scrollDown();
@@ -101,33 +151,22 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       if (_wsReady) {
-        // send via WebSocket
         _ws.sendMessage(me.id, text);
-
-        // Ensure sender sees the message even if websocket event is delayed.
-        // First try: just reload from DB.
         await _loadMessages();
-
-        // Second safety net: if still not updated, also send via HTTP.
-        // (Some cases WS may connect but server handler isn't saving/broadcasting.)
         if (_msgs.isEmpty ||
-            !_msgs.any((m) => m.senderId == me.id && m.content == text)) {
+            !_msgs.any(
+                (m) => m.senderId == me.id && m.content == text)) {
           final token = context.read<AuthProvider>().token!;
           await ApiService.sendMessage(token, widget.roomId, text);
           await _loadMessages();
         }
       } else {
-        // fallback — send via HTTP then reload
         final token = context.read<AuthProvider>().token!;
         await ApiService.sendMessage(token, widget.roomId, text);
         await _loadMessages();
       }
     } catch (e) {
       debugPrint('Send error: $e');
-      // always reload after send
-      await _loadMessages();
-
-      // fallback to HTTP if WS failed
       final token = context.read<AuthProvider>().token;
       if (token != null) {
         await ApiService.sendMessage(token, widget.roomId, text);
@@ -138,9 +177,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final me = context.watch<AuthProvider>().user;
+    final me       = context.watch<AuthProvider>().user;
     final username = widget.otherUser['username']?.toString() ?? 'User';
-    final about = widget.otherUser['about']?.toString() ?? '';
+    final about    = widget.otherUser['about']?.toString() ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -168,21 +207,29 @@ class _ChatScreenState extends State<ChatScreen> {
                       fontSize: 16)),
               if (about.isNotEmpty)
                 Text(about,
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 11)),
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 11)),
             ],
           ),
         ]),
         actions: [
           IconButton(
+            icon: const Icon(Icons.call, color: Colors.white),
+            onPressed: () => _startCall(video: false),
+            tooltip: 'Voice Call',
+          ),
+          IconButton(
+            icon: const Icon(Icons.videocam, color: Colors.white),
+            onPressed: () => _startCall(video: true),
+            tooltip: 'Video Call',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadMessages,
-            tooltip: 'Refresh messages',
           ),
         ],
       ),
       body: Column(children: [
-        // Messages
         Expanded(
           child: Container(
             color: const Color(0xFFECE5DD),
@@ -196,39 +243,44 @@ class _ChatScreenState extends State<ChatScreen> {
                         SizedBox(height: 12),
                         Text('No messages yet.\nSay hello! 👋',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey, fontSize: 16)),
+                            style: TextStyle(
+                                color: Colors.grey, fontSize: 16)),
                       ],
                     ),
                   )
                 : ListView.builder(
                     controller: _scroll,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 8),
                     itemCount: _msgs.length,
                     itemBuilder: (ctx, i) {
-                      final msg = _msgs[i];
+                      final msg  = _msgs[i];
                       final isMe = me != null && msg.senderId == me.id;
                       return Align(
-                        alignment:
-                            isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 3),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                            maxWidth:
+                                MediaQuery.of(context).size.width * 0.75,
                           ),
                           decoration: BoxDecoration(
-                            color:
-                                isMe ? const Color(0xFFDCF8C6) : Colors.white,
+                            color: isMe
+                                ? const Color(0xFFDCF8C6)
+                                : Colors.white,
                             borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(12),
-                              topRight: const Radius.circular(12),
-                              bottomLeft: Radius.circular(isMe ? 12 : 0),
+                              topLeft:     const Radius.circular(12),
+                              topRight:    const Radius.circular(12),
+                              bottomLeft:  Radius.circular(isMe ? 12 : 0),
                               bottomRight: Radius.circular(isMe ? 0 : 12),
                             ),
                             boxShadow: const [
-                              BoxShadow(color: Colors.black12, blurRadius: 2)
+                              BoxShadow(
+                                  color: Colors.black12, blurRadius: 2)
                             ],
                           ),
                           child: Column(
@@ -243,12 +295,15 @@ class _ChatScreenState extends State<ChatScreen> {
                                   Text(
                                     _formatTime(msg.timestamp),
                                     style: const TextStyle(
-                                        fontSize: 10, color: Colors.black45),
+                                        fontSize: 10,
+                                        color: Colors.black45),
                                   ),
                                   if (isMe) ...[
                                     const SizedBox(width: 4),
                                     Icon(
-                                      msg.isRead ? Icons.done_all : Icons.done,
+                                      msg.isRead
+                                          ? Icons.done_all
+                                          : Icons.done,
                                       size: 14,
                                       color: msg.isRead
                                           ? Colors.blue
@@ -265,15 +320,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
           ),
         ),
-
-        // Input bar
         Container(
           color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(children: [
             IconButton(
-              icon:
-                  const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
+              icon: const Icon(Icons.emoji_emotions_outlined,
+                  color: Colors.grey),
               onPressed: () {},
             ),
             Expanded(
@@ -288,8 +341,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
                 ),
                 onSubmitted: (_) => _send(),
               ),
@@ -304,7 +357,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   color: Color(0xFFB71C1C),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.send, color: Colors.white, size: 22),
+                child: const Icon(Icons.send,
+                    color: Colors.white, size: 22),
               ),
             ),
           ]),
