@@ -14,11 +14,25 @@ class WebSocketService {
 
     debugPrint('WS connect uri: $uri');
 
-    _channel = WebSocketChannel.connect(uri);
+    // Ensure we attach handlers immediately for better diagnostics
+    try {
+      _channel = WebSocketChannel.connect(uri);
+      _channel!.ready.timeout(const Duration(seconds: 10)).then((_) {
+        debugPrint('WS connected (chat room: $roomId)');
+      }).catchError((e) {
+        debugPrint('WS connect failed/timeout (chat room: $roomId): $e');
+      });
 
-    _channel!.stream.listen((data) {
-      if (onMessage != null) onMessage!(jsonDecode(data));
-    });
+      _channel!.stream.listen(
+        (data) {
+          if (onMessage != null) onMessage!(jsonDecode(data));
+        },
+        onError: (e) => debugPrint('WS stream error (chat room: $roomId): $e'),
+        onDone: () => debugPrint('WS stream done (chat room: $roomId)'),
+      );
+    } catch (e) {
+      debugPrint('WS exception (chat room: $roomId): $e');
+    }
   }
 
   void sendMessage(int userId, String content) {

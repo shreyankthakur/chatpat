@@ -7,9 +7,9 @@ class CallService {
   WebSocketChannel? _channel;
 
   Function(Map)? onCallReceived;
-  Function()?    onCallAccepted;
-  Function()?    onCallRejected;
-  Function()?    onCallEnded;
+  Function()? onCallAccepted;
+  Function()? onCallRejected;
+  Function()? onCallEnded;
 
   void connect(int userId, {String? token}) {
     final uri = Uri.parse('$WS_URL/ws/call/$userId/').replace(
@@ -21,18 +21,20 @@ class CallService {
 
     try {
       _channel = WebSocketChannel.connect(uri);
-      _channel!.ready.then((_) {
-        debugPrint('Call WS connected');
-        _channel!.stream.listen(
-          (data) => _handleMessage(jsonDecode(data)),
-          onError: (e) => debugPrint('Call WS error: $e'),
-          onDone:  ()  => debugPrint('Call WS closed'),
-        );
+
+      _channel!.ready.timeout(const Duration(seconds: 10)).then((_) {
+        debugPrint('Call WS connected (user: $userId)');
       }).catchError((e) {
-        debugPrint('Call WS connect failed: $e');
+        debugPrint('Call WS connect failed/timeout (user: $userId): $e');
       });
+
+      _channel!.stream.listen(
+        (data) => _handleMessage(jsonDecode(data)),
+        onError: (e) => debugPrint('Call WS stream error (user: $userId): $e'),
+        onDone: () => debugPrint('Call WS stream done (user: $userId)'),
+      );
     } catch (e) {
-      debugPrint('Call WS exception: $e');
+      debugPrint('Call WS exception (user: $userId): $e');
     }
   }
 
@@ -56,39 +58,39 @@ class CallService {
   }
 
   void callUser({
-    required int    callerId,
+    required int callerId,
     required String callerName,
-    required int    targetId,
-    required int    roomId,
-    bool            video = false,
+    required int targetId,
+    required int roomId,
+    bool video = false,
   }) {
     _send({
-      'type':        'call_user',
-      'caller_id':   callerId,
+      'type': 'call_user',
+      'caller_id': callerId,
       'caller_name': callerName,
-      'target_id':   targetId,
-      'room_id':     roomId,
-      'call_type':   video ? 'video' : 'audio',
+      'target_id': targetId,
+      'room_id': roomId,
+      'call_type': video ? 'video' : 'audio',
     });
   }
 
   void acceptCall(int targetId, int roomId) => _send({
-    'type':      'call_accepted',
-    'target_id': targetId,
-    'room_id':   roomId,
-  });
+        'type': 'call_accepted',
+        'target_id': targetId,
+        'room_id': roomId,
+      });
 
   void rejectCall(int targetId, int roomId) => _send({
-    'type':      'call_rejected',
-    'target_id': targetId,
-    'room_id':   roomId,
-  });
+        'type': 'call_rejected',
+        'target_id': targetId,
+        'room_id': roomId,
+      });
 
   void endCall(int targetId, int roomId) => _send({
-    'type':      'call_ended',
-    'target_id': targetId,
-    'room_id':   roomId,
-  });
+        'type': 'call_ended',
+        'target_id': targetId,
+        'room_id': roomId,
+      });
 
   void toggleMute(bool muted) => debugPrint('Mute: $muted');
 
