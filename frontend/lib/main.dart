@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -8,18 +10,36 @@ import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.init();
 
-  // Background service isn't supported on web.
-  // Prevents the app from crashing on Chrome and lets you see the UI/animations.
-  try {
-    await BackgroundService.init();
-  } catch (_) {
-    // ignore
+  if (!kIsWeb) {
+    // Request battery optimization exemption (critical for Samsung)
+    try {
+      await Permission.ignoreBatteryOptimizations.request();
+    } catch (_) {}
+
+    // Request notification permission (Android 13+)
+    try {
+      await Permission.notification.request();
+    } catch (_) {}
+
+    try {
+      await NotificationService.init();
+    } catch (e) {
+      debugPrint('Notification init error: $e');
+    }
+
+    try {
+      await BackgroundService.init();
+    } catch (e) {
+      debugPrint('Background service init error: $e');
+    }
   }
 
   runApp(
-    ChangeNotifierProvider(create: (_) => AuthProvider(), child: const MyApp()),
+    ChangeNotifierProvider(
+      create: (_) => AuthProvider(),
+      child: const MyApp(),
+    ),
   );
 }
 
