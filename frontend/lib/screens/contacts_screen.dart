@@ -9,13 +9,18 @@ class ContactsScreen extends StatefulWidget {
   final CallService callService;
 
   const ContactsScreen({super.key, required this.callService});
-  @override State<ContactsScreen> createState() => _ContactsScreenState();
+  @override
+  State<ContactsScreen> createState() => _ContactsScreenState();
 }
 
 class _ContactsScreenState extends State<ContactsScreen> {
   List   users   = [];
   bool   loading = true;
   String search  = '';
+
+  static const _purple     = Color(0xFF7C4DFF);
+  static const _purpleDark = Color(0xFF512DA8);
+  static const _bg         = Color(0xFFF5F3FF);
 
   @override
   void initState() {
@@ -41,8 +46,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (token == null) return;
       final room = await ApiService.getOrCreateRoom(token, other['id']);
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
+        Navigator.pushReplacement(context,
           MaterialPageRoute(
             builder: (_) => ChatScreen(
               roomId:      room['id'],
@@ -56,141 +60,254 @@ class _ContactsScreenState extends State<ContactsScreen> {
       debugPrint('Open chat error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open chat. Try again.')));
+          SnackBar(
+            content: const Text('Could not open chat. Try again.'),
+            backgroundColor: _purpleDark,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
       }
     }
   }
 
   List get _filtered => search.isEmpty
       ? users
-      : users.where((u) =>
-          u['username'].toString().toLowerCase()
-            .contains(search.toLowerCase())).toList();
+      : users.where((u) => u['username']
+          .toString()
+          .toLowerCase()
+          .contains(search.toLowerCase()))
+          .toList();
+
+  Color _avatarColor(String name) {
+    final colors = [
+      const Color(0xFF7C4DFF),
+      const Color(0xFF448AFF),
+      const Color(0xFF00BCD4),
+      const Color(0xFF4CAF50),
+      const Color(0xFFFF7043),
+      const Color(0xFFEC407A),
+    ];
+    return colors[name.codeUnitAt(0) % colors.length];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFB71C1C),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'New Chat',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: const Color(0xFFB71C1C),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: TextField(
-              onChanged: (v) => setState(() => search = v),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText:      'Search users...',
-                hintStyle:     const TextStyle(color: Colors.white60),
-                prefixIcon:    const Icon(Icons.search, color: Colors.white60),
-                filled:        true,
-                fillColor:     Colors.white12,
-                border:        OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+      backgroundColor: _bg,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            backgroundColor: _purple,
+            iconTheme: const IconThemeData(color: Colors.white),
+            expandedHeight: 140,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_purpleDark, _purple],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        const Text('New Chat',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text('${users.length} contacts',
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-          Expanded(
-            child: loading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                        color: Color(0xFFB71C1C)))
-                : _filtered.isEmpty
-                    ? Center(
+
+          // Search bar
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  onChanged: (v) => setState(() => search = v),
+                  decoration: const InputDecoration(
+                    hintText: 'Search contacts...',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    prefixIcon: Icon(Icons.search_rounded, color: _purple),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Users
+          loading
+              ? const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: _purple),
+                  ),
+                )
+              : _filtered.isEmpty
+                  ? SliverFillRemaining(
+                      child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.people_outline,
-                                size: 70, color: Colors.grey[400]),
+                            Container(
+                              width: 72, height: 72,
+                              decoration: BoxDecoration(
+                                color: _purple.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.people_outline_rounded,
+                                  size: 36, color: _purple),
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               search.isEmpty
-                                  ? 'No users found'
+                                  ? 'No contacts found'
                                   : 'No results for "$search"',
-                              style: TextStyle(
-                                  color: Colors.grey[500], fontSize: 16),
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 15),
                             ),
                           ],
                         ),
-                      )
-                    : ListView.separated(
-                        itemCount: _filtered.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1, indent: 72),
-                        itemBuilder: (ctx, i) {
-                          final u        = _filtered[i];
-                          final username = u['username']?.toString() ?? 'Unknown';
-                          final about    = u['about']?.toString() ?? 'Hey there!';
-                          final isOnline = u['is_online'] == true;
+                      ),
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) {
+                            final u        = _filtered[i];
+                            final username = u['username']?.toString() ?? 'Unknown';
+                            final about    = u['about']?.toString() ?? 'Hey there!';
+                            final isOnline = u['is_online'] == true;
 
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 4),
-                            leading: Stack(
-                              children: [
-                                CircleAvatar(
-                                  radius: 26,
-                                  backgroundColor: const Color(0xFFE53935),
-                                  child: Text(
-                                    username.isNotEmpty
-                                        ? username[0].toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold),
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () => _openChat(u),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color:
+                                              Colors.black.withOpacity(0.04),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(children: [
+                                      Stack(children: [
+                                        CircleAvatar(
+                                          radius: 26,
+                                          backgroundColor:
+                                              _avatarColor(username),
+                                          child: Text(
+                                            username.isNotEmpty
+                                                ? username[0].toUpperCase()
+                                                : '?',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                        if (isOnline)
+                                          Positioned(
+                                            right: 0, bottom: 0,
+                                            child: Container(
+                                              width: 12, height: 12,
+                                              decoration: BoxDecoration(
+                                                color: Colors.green,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 2),
+                                              ),
+                                            ),
+                                          ),
+                                      ]),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(username,
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                    fontSize: 15,
+                                                    color:
+                                                        Color(0xFF1A1A2E))),
+                                            const SizedBox(height: 3),
+                                            Text(about,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 13)),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 36, height: 36,
+                                        decoration: BoxDecoration(
+                                          color: _purple.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                            Icons.chat_bubble_outline_rounded,
+                                            color: _purple,
+                                            size: 18),
+                                      ),
+                                    ]),
                                   ),
                                 ),
-                                if (isOnline)
-                                  Positioned(
-                                    right: 0, bottom: 0,
-                                    child: Container(
-                                      width: 12, height: 12,
-                                      decoration: BoxDecoration(
-                                        color: Colors.green,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color: Colors.white, width: 2),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            title: Text(
-                              username,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16),
-                            ),
-                            subtitle: Text(
-                              about,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  color: Colors.grey[600], fontSize: 13),
-                            ),
-                            trailing: const Icon(
-                                Icons.chat_bubble_outline,
-                                color: Color(0xFFB71C1C)),
-                            onTap: () => _openChat(u),
-                          );
-                        },
+                              ),
+                            );
+                          },
+                          childCount: _filtered.length,
+                        ),
                       ),
-          ),
+                    ),
         ],
       ),
     );
