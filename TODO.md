@@ -1,11 +1,17 @@
 # TODO
 
-- [x] Add connection timeout + detailed diagnostics to Flutter websocket services (chat + call)
-
-
-- [x] Fix backend ASGI websocket middleware to use AuthMiddlewareStack (and keep token middleware) so websocket handshake doesn’t fail
-
-- [ ] Ensure middleware/token parsing is robust for Railway proxy
-- [ ] Restart and verify by attempting WS connect
-- [ ] If still failing, check Railway logs for daphne/ASGI websocket routing and allowed WebSocket upgrade
+- [ ] Add animation + micro-interaction toolkit: `frontend/lib/widgets/micro_interactions.dart`
+- [ ] Update navigation transitions to use consistent animated route wrappers across screens
+  - [ ] `home_screen.dart`
+  - [ ] `contacts_screen.dart`
+  - [ ] `chat_screen.dart`
+  - [ ] `incoming_call_screen.dart`
+  - [ ] `call_screen.dart` (any pushes/pops if needed)
+  - [ ] `login_screen.dart`
+  - [ ] `register_screen.dart`
+- [ ] Animate incoming message bubbles in `chat_screen.dart`
+- [ ] Add compose bar micro-interactions in `chat_screen.dart` (send button feedback + empty-text hint)
+- [ ] Add press/pulse effects for call controls in `call_screen.dart` and `incoming_call_screen.dart`
+- [ ] Add subtle form/button animations for login/register
+- [ ] Run/verify `flutter run` from `frontend/`
 
