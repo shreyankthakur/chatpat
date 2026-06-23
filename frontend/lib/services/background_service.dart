@@ -1,4 +1,4 @@
-import 'dart:async';
+=import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -17,6 +17,13 @@ void onStart(ServiceInstance service) async {
   const android = AndroidInitializationSettings('@mipmap/ic_launcher');
   await notifications.initialize(
       const InitializationSettings(android: android));
+
+  // REQUEST PERMISSIONS (Android 13+ and 14+)
+  final androidPlugin = notifications
+      .resolvePlatformSpecificImplementation
+          AndroidFlutterLocalNotificationsPlugin>();
+  await androidPlugin?.requestNotificationsPermission();
+  await androidPlugin?.requestFullScreenIntentPermission(); // Android 14+
 
   WebSocketChannel? callChannel;
 
@@ -55,6 +62,8 @@ void onStart(ServiceInstance service) async {
                   fullScreenIntent: true,
                   category:         AndroidNotificationCategory.call,
                   playSound:        true,
+                  ongoing:          true,      // stays visible until dismissed
+                  autoCancel:       false,     // don't dismiss on tap
                 ),
               ),
             );
@@ -132,7 +141,6 @@ void onStart(ServiceInstance service) async {
           );
         }
 
-        // always update stored id
         if (lastMsgId > storedLastId) {
           await prefs.setInt(storedKey, lastMsgId);
         }
@@ -143,14 +151,12 @@ void onStart(ServiceInstance service) async {
   }
 
   await connectCallWS();
-  await pollMessages(); // poll immediately on start
+  await pollMessages();
 
-  // poll messages every 30 seconds
   Timer.periodic(const Duration(seconds: 30), (_) async {
     await pollMessages();
   });
 
-  // ping call WS every 30s to keep alive
   Timer.periodic(const Duration(seconds: 30), (_) {
     try {
       callChannel?.sink.add(jsonEncode({'type': 'ping'}));
@@ -182,10 +188,10 @@ class BackgroundService {
       androidConfiguration: AndroidConfiguration(
         onStart:                         onStart,
         autoStart:                       true,
-        isForegroundMode:                false,
+        isForegroundMode:                true,   // CHANGED false → true
         notificationChannelId:           'chatpat_bg',
         initialNotificationTitle:        'chatpat',
-        initialNotificationContent:      'Running in background',
+        initialNotificationContent:      'Listening for calls...',  // CHANGED
         foregroundServiceNotificationId: 99,
       ),
       iosConfiguration: IosConfiguration(autoStart: true),

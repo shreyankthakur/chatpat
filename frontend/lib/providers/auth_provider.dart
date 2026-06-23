@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../services/background_service.dart'; // ADD THIS
 
 class AuthProvider extends ChangeNotifier {
   String? token;
   UserModel? user;
   bool isLoading = false;
-  String? errorMessage; // ← NEW: surface errors to UI
+  String? errorMessage;
 
   Future<bool> login(String username, String password) async {
     isLoading = true;
@@ -29,6 +30,13 @@ class AuthProvider extends ChangeNotifier {
         await prefs.setInt('user_id', user!.id);
         await prefs.setString('username', user!.username);
         await prefs.setString('about', user!.about);
+
+        // ADD THIS — tell background service about new credentials
+        await BackgroundService.updateCredentials(
+          userId: user!.id,
+          token:  token!,
+        );
+
         isLoading = false;
         notifyListeners();
         return true;
@@ -67,6 +75,13 @@ class AuthProvider extends ChangeNotifier {
         await prefs.setInt('user_id', user!.id);
         await prefs.setString('username', user!.username);
         await prefs.setString('about', user!.about);
+
+        // ADD THIS — tell background service about new credentials
+        await BackgroundService.updateCredentials(
+          userId: user!.id,
+          token:  token!,
+        );
+
         isLoading = false;
         notifyListeners();
         return true;
@@ -91,6 +106,7 @@ class AuthProvider extends ChangeNotifier {
     errorMessage = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    BackgroundService.stop(); // ADD THIS — stop background service on logout
     notifyListeners();
   }
 
@@ -98,16 +114,22 @@ class AuthProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     token = prefs.getString('token');
     if (token != null) {
-      final id = prefs.getInt('user_id');
+      final id       = prefs.getInt('user_id');
       final username = prefs.getString('username');
-      final about = prefs.getString('about') ?? 'Hey there!';
+      final about    = prefs.getString('about') ?? 'Hey there!';
       if (id != null && username != null) {
         user = UserModel(
-          id: id,
+          id:       id,
           username: username,
-          phone: '',
-          about: about,
+          phone:    '',
+          about:    about,
           isOnline: false,
+        );
+
+        // ADD THIS — restore credentials in background service on app restart
+        await BackgroundService.updateCredentials(
+          userId: user!.id,
+          token:  token!,
         );
       }
     }
