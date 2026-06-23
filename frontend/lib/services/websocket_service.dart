@@ -25,7 +25,20 @@ class WebSocketService {
 
       _channel!.stream.listen(
         (data) {
-          if (onMessage != null) onMessage!(jsonDecode(data));
+          try {
+            if (onMessage == null) return;
+            final decoded = jsonDecode(data);
+            if (decoded is Map<String, dynamic>) {
+              onMessage!(decoded);
+            } else if (decoded is Map) {
+              onMessage!(Map<String, dynamic>.from(decoded));
+            } else {
+              debugPrint('WS payload not a map (chat room: $roomId): $decoded');
+            }
+          } catch (e) {
+            debugPrint(
+                'WS message decode/handler error (chat room: $roomId): $e');
+          }
         },
         onError: (e) => debugPrint('WS stream error (chat room: $roomId): $e'),
         onDone: () => debugPrint('WS stream done (chat room: $roomId)'),
@@ -39,5 +52,9 @@ class WebSocketService {
     _channel?.sink.add(jsonEncode({'user_id': userId, 'content': content}));
   }
 
-  void disconnect() => _channel?.sink.close();
+  void disconnect() {
+    try {
+      _channel?.sink.close();
+    } catch (_) {}
+  }
 }

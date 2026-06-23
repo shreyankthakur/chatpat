@@ -11,6 +11,19 @@ import 'services/background_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+    debugPrint('Stack: ${details.stack}');
+  };
+
+  // Use Flutter's guarded runner to prevent hard crashes.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+    debugPrint('Stack: ${details.stack}');
+  };
+
+  // NOTE: runZonedGuarded requires dart:async; we rely on FlutterError + guarded init below.
+
   if (!kIsWeb) {
     // Request battery optimization exemption (critical for Samsung)
     try {

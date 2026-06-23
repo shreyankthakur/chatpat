@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
@@ -11,9 +13,9 @@ import 'call_screen.dart';
 import 'incoming_call_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  final int                  roomId;
+  final int roomId;
   final Map<String, dynamic> otherUser;
-  final CallService          callService;
+  final CallService callService;
 
   const ChatScreen({
     super.key,
@@ -27,16 +29,16 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final _ctrl   = TextEditingController();
+  final _ctrl = TextEditingController();
   final _scroll = ScrollController();
-  final _ws     = WebSocketService();
+  final _ws = WebSocketService();
 
-  List<MessageModel> _msgs    = [];
-  bool               _wsReady = false;
+  List<MessageModel> _msgs = [];
+  bool _wsReady = false;
 
-  static const _purple     = Color(0xFF7C4DFF);
+  static const _purple = Color(0xFF7C4DFF);
   static const _purpleDark = Color(0xFF512DA8);
-  static const _bgChat     = Color(0xFFF0EEF9);
+  static const _bgChat = Color(0xFFF0EEF9);
 
   CallService get _callService => widget.callService;
 
@@ -57,16 +59,17 @@ class _ChatScreenState extends State<ChatScreen> {
     final me = context.read<AuthProvider>().user;
     if (me == null) return;
     final callerName = data['caller_name']?.toString() ?? 'Someone';
-    final isVideo    = data['call_type'] == 'video';
+    final isVideo = data['call_type'] == 'video';
 
     NotificationService.showCallNotification(
         callerName: callerName, isVideo: isVideo);
 
-    Navigator.push(context,
+    Navigator.push(
+        context,
         MaterialPageRoute(
           builder: (_) => IncomingCallScreen(
-            callData:    data,
-            myId:        me.id,
+            callData: data,
+            myId: me.id,
             callService: _callService,
           ),
         )).then((_) => NotificationService.cancelCallNotification());
@@ -77,22 +80,23 @@ class _ChatScreenState extends State<ChatScreen> {
     if (me == null) return;
 
     _callService.callUser(
-      callerId:   me.id,
+      callerId: me.id,
       callerName: me.username,
-      targetId:   widget.otherUser['id'],
-      roomId:     widget.roomId,
-      video:      video,
+      targetId: widget.otherUser['id'],
+      roomId: widget.roomId,
+      video: video,
     );
 
-    Navigator.push(context,
+    Navigator.push(
+        context,
         MaterialPageRoute(
           builder: (_) => CallScreen(
-            myId:        me.id,
-            otherId:     widget.otherUser['id'],
-            roomId:      widget.roomId,
-            otherName:   widget.otherUser['username'] ?? 'User',
-            isVideo:     video,
-            isCaller:    true,
+            myId: me.id,
+            otherId: widget.otherUser['id'],
+            roomId: widget.roomId,
+            otherName: widget.otherUser['username'] ?? 'User',
+            isVideo: video,
+            isCaller: true,
             callService: _callService,
           ),
         ));
@@ -101,18 +105,23 @@ class _ChatScreenState extends State<ChatScreen> {
   void _connectWS() {
     try {
       final token = context.read<AuthProvider>().token;
-      final me    = context.read<AuthProvider>().user;
+      final me = context.read<AuthProvider>().user;
       _ws.connect(widget.roomId, token: token);
       _ws.onMessage = (data) {
         if (!mounted) return;
-        final msg = MessageModel.fromJson(Map<String, dynamic>.from(data));
-        setState(() => _msgs.add(msg));
-        _scrollDown();
-        if (me != null && msg.senderId != me.id) {
-          NotificationService.showMessageNotification(
-            senderName: widget.otherUser['username']?.toString() ?? 'Someone',
-            message:    msg.content,
-          );
+        try {
+          final msg = MessageModel.fromJson(Map<String, dynamic>.from(data));
+          if (!mounted) return;
+          setState(() => _msgs.add(msg));
+          _scrollDown();
+          if (me != null && msg.senderId != me.id) {
+            NotificationService.showMessageNotification(
+              senderName: widget.otherUser['username']?.toString() ?? 'Someone',
+              message: msg.content,
+            );
+          }
+        } catch (e) {
+          debugPrint('Chat WS onMessage error: $e');
         }
       };
       setState(() => _wsReady = true);
@@ -122,15 +131,29 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _startPolling() async {
-    while (mounted) {
-      await Future.delayed(const Duration(seconds: 3));
-      if (mounted) await _loadMessages();
-    }
+  Timer? _pollTimer;
+  bool _loadingMessages = false;
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (t) async {
+      if (!mounted || _loadingMessages) return;
+      _loadingMessages = true;
+      try {
+        await _loadMessages();
+      } catch (e) {
+        debugPrint('Polling load messages error: $e');
+      } finally {
+        _loadingMessages = false;
+      }
+    });
   }
 
   @override
   void dispose() {
+    try {
+      _pollTimer?.cancel();
+    } catch (_) {}
     _ws.disconnect();
     _ctrl.dispose();
     _scroll.dispose();
@@ -200,7 +223,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final me       = context.watch<AuthProvider>().user;
+    final me = context.watch<AuthProvider>().user;
     final username = widget.otherUser['username']?.toString() ?? 'User';
     final isOnline = widget.otherUser['is_online'] == true;
 
@@ -233,9 +256,8 @@ class _ChatScreenState extends State<ChatScreen> {
               Text(
                 isOnline ? 'Online' : 'Offline',
                 style: TextStyle(
-                  color: isOnline
-                      ? Colors.greenAccent.shade100
-                      : Colors.white54,
+                  color:
+                      isOnline ? Colors.greenAccent.shade100 : Colors.white54,
                   fontSize: 11,
                 ),
               ),
@@ -266,7 +288,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 72, height: 72,
+                        width: 72,
+                        height: 72,
                         decoration: BoxDecoration(
                           color: _purple.withOpacity(0.1),
                           shape: BoxShape.circle,
@@ -288,17 +311,16 @@ class _ChatScreenState extends State<ChatScreen> {
                 )
               : ListView.builder(
                   controller: _scroll,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   itemCount: _msgs.length,
                   itemBuilder: (ctx, i) {
-                    final msg  = _msgs[i];
+                    final msg = _msgs[i];
                     final isMe = me != null && msg.senderId == me.id;
 
                     return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
+                      alignment:
+                          isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 3),
                         padding: const EdgeInsets.symmetric(
@@ -309,9 +331,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         decoration: BoxDecoration(
                           color: isMe ? _purple : Colors.white,
                           borderRadius: BorderRadius.only(
-                            topLeft:     const Radius.circular(16),
-                            topRight:    const Radius.circular(16),
-                            bottomLeft:  Radius.circular(isMe ? 16 : 4),
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft: Radius.circular(isMe ? 16 : 4),
                             bottomRight: Radius.circular(isMe ? 4 : 16),
                           ),
                           boxShadow: [
@@ -339,9 +361,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                   _formatTime(msg.timestamp),
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: isMe
-                                        ? Colors.white60
-                                        : Colors.black38,
+                                    color:
+                                        isMe ? Colors.white60 : Colors.black38,
                                   ),
                                 ),
                                 if (isMe) ...[
@@ -384,8 +405,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     hintText: 'Write a message...',
                     hintStyle: TextStyle(color: Colors.grey),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   ),
                   onSubmitted: (_) => _send(),
                 ),
@@ -395,7 +416,8 @@ class _ChatScreenState extends State<ChatScreen> {
             GestureDetector(
               onTap: _send,
               child: Container(
-                width: 48, height: 48,
+                width: 48,
+                height: 48,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [_purple, _purpleDark],

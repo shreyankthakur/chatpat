@@ -1,17 +1,9 @@
-# TODO
+## Crash-hardening steps (frontend)
 
-- [ ] Add animation + micro-interaction toolkit: `frontend/lib/widgets/micro_interactions.dart`
-- [ ] Update navigation transitions to use consistent animated route wrappers across screens
-  - [ ] `home_screen.dart`
-  - [ ] `contacts_screen.dart`
-  - [ ] `chat_screen.dart`
-  - [ ] `incoming_call_screen.dart`
-  - [ ] `call_screen.dart` (any pushes/pops if needed)
-  - [ ] `login_screen.dart`
-  - [ ] `register_screen.dart`
-- [ ] Animate incoming message bubbles in `chat_screen.dart`
-- [ ] Add compose bar micro-interactions in `chat_screen.dart` (send button feedback + empty-text hint)
-- [ ] Add press/pulse effects for call controls in `call_screen.dart` and `incoming_call_screen.dart`
-- [ ] Add subtle form/button animations for login/register
-- [ ] Run/verify `flutter run` from `frontend/`
+- [ ] Add global Flutter error guards in `frontend/lib/main.dart` (runZonedGuarded + FlutterError.onError)
+- [ ] Harden `WebSocketService` message decode + handler invocation (`frontend/lib/services/websocket_service.dart`)
+- [ ] Harden `ChatScreen` WebSocket message parsing + polling loop + avoid overlapping loads (`frontend/lib/screens/chat_screen.dart`)
+- [ ] Harden `CallService` WebRTC init + offer/answer/ice handlers with try/catch (`frontend/lib/services/call_service.dart`)
+- [ ] Harden `BackgroundService` reconnection recursion + ensure timers never throw uncaught (`frontend/lib/services/background_service.dart`)
+- [ ] Run `flutter analyze` and verify build
 

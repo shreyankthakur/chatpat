@@ -5,20 +5,20 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../constants.dart';
 
 class CallService {
-  WebSocketChannel?  _channel;
+  WebSocketChannel? _channel;
   RTCPeerConnection? _peerConnection;
-  MediaStream?       _localStream;
+  MediaStream? _localStream;
 
-  int?  _targetId;
-  int?  _roomId;
-  bool  _isVideo = false;
+  int? _targetId;
+  int? _roomId;
+  bool _isVideo = false;
 
-  Function(Map)?           onCallReceived;
-  Function()?              onCallAccepted;
-  Function()?              onCallRejected;
-  Function()?              onCallEnded;
-  Function(MediaStream)?   onLocalStream;   // ← new
-  Function(MediaStream)?   onRemoteStream;  // ← new
+  Function(Map)? onCallReceived;
+  Function()? onCallAccepted;
+  Function()? onCallRejected;
+  Function()? onCallEnded;
+  Function(MediaStream)? onLocalStream; // ← new
+  Function(MediaStream)? onRemoteStream; // ← new
 
   void connect(int userId, {String? token}) {
     final uri = Uri.parse('$WS_URL/ws/call/$userId/').replace(
@@ -33,8 +33,9 @@ class CallService {
         debugPrint('Call WS connected (user: $userId)');
         _channel!.stream.listen(
           (data) => _handleMessage(jsonDecode(data)),
-          onError: (e) => debugPrint('Call WS stream error (user: $userId): $e'),
-          onDone:  ()  => debugPrint('Call WS stream done (user: $userId)'),
+          onError: (e) =>
+              debugPrint('Call WS stream error (user: $userId): $e'),
+          onDone: () => debugPrint('Call WS stream done (user: $userId)'),
         );
       }).catchError((e) {
         debugPrint('Call WS connect failed/timeout (user: $userId): $e');
@@ -45,35 +46,39 @@ class CallService {
   }
 
   void _handleMessage(Map msg) {
-    final type = msg['type'];
-    debugPrint('Call message: $type');
-    switch (type) {
-      case 'call_received':
-        onCallReceived?.call(msg);
-        break;
-      case 'call_accepted':
-        onCallAccepted?.call();
-        if (_targetId != null && _roomId != null) {
-          _createOffer(_roomId!, targetId: _targetId!);
-        }
-        break;
-      case 'call_rejected':
-        onCallRejected?.call();
-        _cleanup();
-        break;
-      case 'call_ended':
-        onCallEnded?.call();
-        _cleanup();
-        break;
-      case 'call_offer':
-        _handleOffer(msg['data'], msg['room_id']);
-        break;
-      case 'call_answer':
-        _handleAnswer(msg['data']);
-        break;
-      case 'call_ice':
-        _handleIceCandidate(msg['data']);
-        break;
+    try {
+      final type = msg['type'];
+      debugPrint('Call message: $type');
+      switch (type) {
+        case 'call_received':
+          onCallReceived?.call(msg);
+          break;
+        case 'call_accepted':
+          onCallAccepted?.call();
+          if (_targetId != null && _roomId != null) {
+            _createOffer(_roomId!, targetId: _targetId!);
+          }
+          break;
+        case 'call_rejected':
+          onCallRejected?.call();
+          _cleanup();
+          break;
+        case 'call_ended':
+          onCallEnded?.call();
+          _cleanup();
+          break;
+        case 'call_offer':
+          _handleOffer(msg['data'], msg['room_id']);
+          break;
+        case 'call_answer':
+          _handleAnswer(msg['data']);
+          break;
+        case 'call_ice':
+          _handleIceCandidate(msg['data']);
+          break;
+      }
+    } catch (e) {
+      debugPrint('Call _handleMessage error: $e');
     }
   }
 
@@ -86,49 +91,49 @@ class CallService {
   }
 
   void callUser({
-    required int    callerId,
+    required int callerId,
     required String callerName,
-    required int    targetId,
-    required int    roomId,
-    bool            video = false,
+    required int targetId,
+    required int roomId,
+    bool video = false,
   }) {
     _targetId = targetId;
-    _roomId   = roomId;
-    _isVideo  = video;
+    _roomId = roomId;
+    _isVideo = video;
     _send({
-      'type':        'call_user',
-      'caller_id':   callerId,
+      'type': 'call_user',
+      'caller_id': callerId,
       'caller_name': callerName,
-      'target_id':   targetId,
-      'room_id':     roomId,
-      'call_type':   video ? 'video' : 'audio',
+      'target_id': targetId,
+      'room_id': roomId,
+      'call_type': video ? 'video' : 'audio',
     });
     _initPeerConnection(targetId, roomId, isCaller: true);
   }
 
   void acceptCall(int targetId, int roomId, {bool video = false}) {
     _targetId = targetId;
-    _roomId   = roomId;
-    _isVideo  = video;
+    _roomId = roomId;
+    _isVideo = video;
     _send({
-      'type':      'call_accepted',
+      'type': 'call_accepted',
       'target_id': targetId,
-      'room_id':   roomId,
+      'room_id': roomId,
     });
     _initPeerConnection(targetId, roomId, isCaller: false);
   }
 
   void rejectCall(int targetId, int roomId) => _send({
-    'type':      'call_rejected',
-    'target_id': targetId,
-    'room_id':   roomId,
-  });
+        'type': 'call_rejected',
+        'target_id': targetId,
+        'room_id': roomId,
+      });
 
   void endCall(int targetId, int roomId) {
     _send({
-      'type':      'call_ended',
+      'type': 'call_ended',
       'target_id': targetId,
-      'room_id':   roomId,
+      'room_id': roomId,
     });
     _cleanup();
   }
@@ -148,8 +153,8 @@ class CallService {
     }
   }
 
-  Future<void> _initPeerConnection(
-      int targetId, int roomId, {required bool isCaller}) async {
+  Future<void> _initPeerConnection(int targetId, int roomId,
+      {required bool isCaller}) async {
     final config = {
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
@@ -183,12 +188,12 @@ class CallService {
     _peerConnection!.onIceCandidate = (candidate) {
       if (candidate.candidate != null) {
         _send({
-          'type':      'ice_candidate',
+          'type': 'ice_candidate',
           'target_id': targetId,
-          'room_id':   roomId,
+          'room_id': roomId,
           'data': {
-            'candidate':     candidate.candidate,
-            'sdpMid':        candidate.sdpMid,
+            'candidate': candidate.candidate,
+            'sdpMid': candidate.sdpMid,
             'sdpMLineIndex': candidate.sdpMLineIndex,
           },
         });
@@ -210,11 +215,11 @@ class CallService {
     });
     await _peerConnection!.setLocalDescription(offer);
     _send({
-      'type':      'offer',
+      'type': 'offer',
       'target_id': targetId,
-      'room_id':   roomId,
+      'room_id': roomId,
       'data': {
-        'sdp':  offer.sdp,
+        'sdp': offer.sdp,
         'type': offer.type,
       },
     });
@@ -228,11 +233,11 @@ class CallService {
     final answer = await _peerConnection!.createAnswer();
     await _peerConnection!.setLocalDescription(answer);
     _send({
-      'type':      'answer',
+      'type': 'answer',
       'target_id': _targetId,
-      'room_id':   roomId,
+      'room_id': roomId,
       'data': {
-        'sdp':  answer.sdp,
+        'sdp': answer.sdp,
         'type': answer.type,
       },
     });
@@ -257,11 +262,11 @@ class CallService {
   Future<void> _cleanup() async {
     await _localStream?.dispose();
     await _peerConnection?.close();
-    _localStream    = null;
+    _localStream = null;
     _peerConnection = null;
-    _targetId       = null;
-    _roomId         = null;
-    _isVideo        = false;
+    _targetId = null;
+    _roomId = null;
+    _isVideo = false;
   }
 
   void disconnect() {
