@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/call_service.dart';
+import '../services/notification_service.dart';
+import 'call_screen.dart';
 import 'chat_screen.dart';
 import 'contacts_screen.dart';
+import 'incoming_call_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,17 +16,58 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List rooms = [];
+  List              rooms       = [];
+  final _callService = CallService();
 
   @override
   void initState() {
     super.initState();
     _loadRooms();
+    _initCallService();
+  }
+
+  void _initCallService() {
+    final auth = context.read<AuthProvider>();
+    final me   = auth.user;
+    if (me == null) return;
+
+    _callService.connect(me.id, token: auth.token);
+
+    _callService.onCallReceived = (data) => _handleIncomingCall(data);
+  }
+
+  void _handleIncomingCall(Map data) {
+    if (!mounted) return;
+    final me         = context.read<AuthProvider>().user;
+    if (me == null) return;
+    final callerName = data['caller_name']?.toString() ?? 'Someone';
+    final isVideo    = data['call_type'] == 'video';
+
+    NotificationService.showCallNotification(
+      callerName: callerName,
+      isVideo:    isVideo,
+    );
+
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => IncomingCallScreen(
+        callData:    data,
+        myId:        me.id,
+        callService: _callService,
+      ),
+    )).then((_) {
+      NotificationService.cancelCallNotification();
+    });
+  }
+
+  @override
+  void dispose() {
+    _callService.disconnect();
+    super.dispose();
   }
 
   Future<void> _loadRooms() async {
     final token = context.read<AuthProvider>().token!;
-    final data = await ApiService.getRooms(token);
+    final data  = await ApiService.getRooms(token);
     setState(() => rooms = data);
   }
 
@@ -33,7 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFB71C1C),
         title: const Text('chatpat',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
               icon: const Icon(Icons.logout, color: Colors.white),
@@ -48,11 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
           : ListView.builder(
               itemCount: rooms.length,
               itemBuilder: (ctx, i) {
-                final room = rooms[i];
+                final room   = rooms[i];
                 final others = (room['participants'] as List)
                     .where((p) => p['id'] != me.id)
                     .toList();
-                final other = others.isNotEmpty
+                final other  = others.isNotEmpty
                     ? others.first
                     : room['participants'].first;
                 final lastMsg = room['last_message'];
@@ -63,27 +109,36 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(color: Colors.white)),
                   ),
                   title: Text(other['username'],
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style:
+                          const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(
-                      lastMsg != null ? lastMsg['content'] : 'No messages',
+                      lastMsg != null
+                          ? lastMsg['content']
+                          : 'No messages',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                                roomId: room['id'],
-                                otherUser: other,
-                              ))).then((_) => _loadRooms()),
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        roomId:    room['id'],
+                        otherUser: other,
+                        // pass the same callService so callbacks
+                        // don't get overwritten
+                        callService: _callService,
+                      ),
+                    ),
+                  ).then((_) => _loadRooms()),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF25D366),
         child: const Icon(Icons.chat, color: Colors.white),
-        onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ContactsScreen()))
-            .then((_) => _loadRooms()),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ContactsScreen()),
+        ).then((_) => _loadRooms()),
       ),
     );
   }

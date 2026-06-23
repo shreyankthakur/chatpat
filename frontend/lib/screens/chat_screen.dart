@@ -6,7 +6,6 @@ import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/call_service.dart';
 import '../services/notification_service.dart';
-import '../services/background_service.dart';
 import '../models/message.dart';
 import 'call_screen.dart';
 import 'incoming_call_screen.dart';
@@ -14,49 +13,47 @@ import 'incoming_call_screen.dart';
 class ChatScreen extends StatefulWidget {
   final int                  roomId;
   final Map<String, dynamic> otherUser;
-  const ChatScreen({super.key, required this.roomId, required this.otherUser});
+  final CallService          callService;
+
+  const ChatScreen({
+    super.key,
+    required this.roomId,
+    required this.otherUser,
+    required this.callService,
+  });
+
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final _ctrl        = TextEditingController();
-  final _scroll      = ScrollController();
-  final _ws          = WebSocketService();
-  final _callService = CallService();
+  final _ctrl   = TextEditingController();
+  final _scroll = ScrollController();
+  final _ws     = WebSocketService();
+
   List<MessageModel> _msgs    = [];
   bool               _wsReady = false;
+
+  CallService get _callService => widget.callService;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _connectWS();
-    _initCallService();
+    _setupCallCallbacks();
   }
 
-  void _initCallService() {
-    final auth = context.read<AuthProvider>();
-    final me   = auth.user;
+  void _setupCallCallbacks() {
+    final me = context.read<AuthProvider>().user;
     if (me == null) return;
 
-    _callService.connect(me.id, token: auth.token);
-
-    // foreground call events
     _callService.onCallReceived = (data) => _handleIncomingCall(data);
-
-    // background call events
-    BackgroundService.callEvents.listen((data) {
-      if (data == null) return;
-      if (data['type'] == 'call_received') {
-        _handleIncomingCall(data);
-      }
-    });
   }
 
   void _handleIncomingCall(Map data) {
     if (!mounted) return;
-    final me         = context.read<AuthProvider>().user;
+    final me = context.read<AuthProvider>().user;
     if (me == null) return;
     final callerName = data['caller_name']?.toString() ?? 'Someone';
     final isVideo    = data['call_type'] == 'video';
@@ -140,7 +137,6 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _ws.disconnect();
-    _callService.disconnect();
     _ctrl.dispose();
     _scroll.dispose();
     super.dispose();
