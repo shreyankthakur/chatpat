@@ -5,6 +5,8 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/call_service.dart';
+import '../services/notification_service.dart';
+import '../services/background_service.dart';
 import '../models/message.dart';
 import 'call_screen.dart';
 import 'incoming_call_screen.dart';
@@ -40,16 +42,39 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _callService.connect(me.id, token: auth.token);
 
-    _callService.onCallReceived = (data) {
-      if (!mounted) return;
-      Navigator.push(context, MaterialPageRoute(
-        builder: (_) => IncomingCallScreen(
-          callData:    data,
-          myId:        me.id,
-          callService: _callService,
-        ),
-      ));
-    };
+    // foreground call events
+    _callService.onCallReceived = (data) => _handleIncomingCall(data);
+
+    // background call events
+    BackgroundService.callEvents.listen((data) {
+      if (data == null) return;
+      if (data['type'] == 'call_received') {
+        _handleIncomingCall(data);
+      }
+    });
+  }
+
+  void _handleIncomingCall(Map data) {
+    if (!mounted) return;
+    final me         = context.read<AuthProvider>().user;
+    if (me == null) return;
+    final callerName = data['caller_name']?.toString() ?? 'Someone';
+    final isVideo    = data['call_type'] == 'video';
+
+    NotificationService.showCallNotification(
+      callerName: callerName,
+      isVideo:    isVideo,
+    );
+
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => IncomingCallScreen(
+        callData:    data,
+        myId:        me.id,
+        callService: _callService,
+      ),
+    )).then((_) {
+      NotificationService.cancelCallNotification();
+    });
   }
 
   void _startCall({required bool video}) {
@@ -80,14 +105,23 @@ class _ChatScreenState extends State<ChatScreen> {
   void _connectWS() {
     try {
       final token = context.read<AuthProvider>().token;
+      final me    = context.read<AuthProvider>().user;
       _ws.connect(widget.roomId, token: token);
       _ws.onMessage = (data) {
         if (!mounted) return;
-        setState(() {
-          _msgs.add(MessageModel.fromJson(
-              Map<String, dynamic>.from(data)));
-        });
+        final msg = MessageModel.fromJson(
+            Map<String, dynamic>.from(data));
+        setState(() => _msgs.add(msg));
         _scrollDown();
+
+        if (me != null && msg.senderId != me.id) {
+          final senderName =
+              widget.otherUser['username']?.toString() ?? 'Someone';
+          NotificationService.showMessageNotification(
+            senderName: senderName,
+            message:    msg.content,
+          );
+        }
       };
       setState(() => _wsReady = true);
     } catch (e) {
