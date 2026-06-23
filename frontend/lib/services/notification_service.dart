@@ -1,5 +1,4 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/material.dart';
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -8,7 +7,7 @@ class NotificationService {
   static Future<void> init() async {
     if (_initialized) return;
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android  = AndroidInitializationSettings('@mipmap/ic_launcher');
     const settings = InitializationSettings(android: android);
 
     await _plugin.initialize(
@@ -18,11 +17,10 @@ class NotificationService {
       },
     );
 
-    // request permission on Android 13+
-    await _plugin
+    final androidImpl = _plugin
         .resolvePlatformSpecificImplementation
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidImpl?.requestNotificationsPermission();
 
     _initialized = true;
   }
@@ -37,34 +35,29 @@ class NotificationService {
         'Messages',
         channelDescription: 'New message notifications',
         importance: Importance.high,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-        playSound: true,
+        priority:   Priority.high,
+        icon:       '@mipmap/ic_launcher',
+        playSound:  true,
       ),
     );
-    await _plugin.show(
-      1,
-      senderName,
-      message,
-      details,
-    );
+    await _plugin.show(1, senderName, message, details);
   }
 
   static Future<void> showCallNotification({
     required String callerName,
-    required bool isVideo,
+    required bool   isVideo,
   }) async {
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'calls',
         'Calls',
         channelDescription: 'Incoming call notifications',
-        importance: Importance.max,
-        priority: Priority.max,
-        icon: '@mipmap/ic_launcher',
-        playSound: true,
+        importance:       Importance.max,
+        priority:         Priority.max,
+        icon:             '@mipmap/ic_launcher',
+        playSound:        true,
         fullScreenIntent: true,
-        category: AndroidNotificationCategory.call,
+        category:         AndroidNotificationCategory.call,
       ),
     );
     await _plugin.show(
