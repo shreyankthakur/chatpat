@@ -121,10 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => ChatScreen(
-                        roomId:    room['id'],
-                        otherUser: other,
-                        // pass the same callService so callbacks
-                        // don't get overwritten
+                        roomId:      room['id'],
+                        otherUser:   other,
                         callService: _callService,
                       ),
                     ),
@@ -137,7 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.chat, color: Colors.white),
         onPressed: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const ContactsScreen()),
+          MaterialPageRoute(
+            builder: (_) => ContactsScreen(callService: _callService),  // FIXED
+          ),
         ).then((_) => _loadRooms()),
       ),
     );

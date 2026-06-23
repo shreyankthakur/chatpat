@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/call_service.dart';
 import 'chat_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
-  const ContactsScreen({super.key});
+  final CallService callService;
+
+  const ContactsScreen({super.key, required this.callService});
   @override State<ContactsScreen> createState() => _ContactsScreenState();
 }
 
@@ -42,8 +45,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => ChatScreen(
-              roomId:    room['id'],
-              otherUser: Map<String, dynamic>.from(other),
+              roomId:      room['id'],
+              otherUser:   Map<String, dynamic>.from(other),
+              callService: widget.callService,
             ),
           ),
         );
@@ -81,7 +85,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
           Container(
             color: const Color(0xFFB71C1C),
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -101,8 +104,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
               ),
             ),
           ),
-
-          // Users list
           Expanded(
             child: loading
                 ? const Center(
