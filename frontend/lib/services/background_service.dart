@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'; // FIXED
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +12,6 @@ const String _wsTokenKey = 'ws_token';
 const String _lastMsgKey = 'last_msg_id';
 const String _baseUrl    = 'http://192.168.1.85:8000';
 
-// FIX: retry counter lives outside connectCallWS so recursion is bounded
 int _wsRetryCount = 0;
 const int _wsMaxRetries = 10;
 
@@ -20,6 +19,7 @@ const int _wsMaxRetries = 10;
 void onStart(ServiceInstance service) async {
   final notifications = FlutterLocalNotificationsPlugin();
   const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+
   await notifications.initialize(
     const InitializationSettings(android: android),
   );
@@ -27,7 +27,6 @@ void onStart(ServiceInstance service) async {
   WebSocketChannel? callChannel;
 
   Future<void> connectCallWS() async {
-    // FIX: stop recursing after max retries
     if (_wsRetryCount >= _wsMaxRetries) {
       debugPrint('WS: max retries reached, giving up.');
       return;
@@ -45,7 +44,7 @@ void onStart(ServiceInstance service) async {
     try {
       callChannel = WebSocketChannel.connect(uri);
       await callChannel!.ready;
-      _wsRetryCount = 0; // reset on successful connection
+      _wsRetryCount = 0;
 
       callChannel!.stream.listen(
         (data) async {
@@ -56,6 +55,7 @@ void onStart(ServiceInstance service) async {
             if (type == 'call_received') {
               final callerName = msg['caller_name']?.toString() ?? 'Someone';
               final isVideo    = msg['call_type'] == 'video';
+
               await notifications.show(
                 2,
                 isVideo ? 'Incoming Video Call' : 'Incoming Voice Call',
@@ -139,10 +139,12 @@ void onStart(ServiceInstance service) async {
 
           if (lastMsgId > storedLastId && lastMsgSender != myUserId) {
             final participants = room['participants'] as List;
+
             final sender = participants.firstWhere(
               (p) => p['id'] == lastMsgSender,
               orElse: () => {'username': 'Someone'},
             );
+
             final senderName = sender['username']?.toString() ?? 'Someone';
             final content    = lastMsg['content']?.toString() ?? '';
 
@@ -174,16 +176,13 @@ void onStart(ServiceInstance service) async {
     }
   }
 
-  // Start WS and initial poll
   await connectCallWS();
   await pollMessages();
 
-  // Poll messages every 30s
   Timer.periodic(const Duration(seconds: 30), (_) async {
     await pollMessages();
   });
 
-  // Ping WS every 30s to keep connection alive
   Timer.periodic(const Duration(seconds: 30), (_) {
     try {
       callChannel?.sink.add(jsonEncode({'type': 'ping'}));
@@ -197,12 +196,15 @@ void onStart(ServiceInstance service) async {
 
   service.on('update_credentials').listen((data) async {
     if (data == null) return;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_wsCallKey,     data['user_id'] as int);
       await prefs.setString(_wsTokenKey, data['token']   as String);
-      _wsRetryCount = 0; // reset retries on fresh credentials
+
+      _wsRetryCount = 0;
       callChannel?.sink.close();
+
       await connectCallWS();
       await pollMessages();
     } catch (e) {
@@ -238,9 +240,11 @@ class BackgroundService {
     required String token,
   }) async {
     if (kIsWeb) return;
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_wsCallKey,     userId);
     await prefs.setString(_wsTokenKey, token);
+
     _service.invoke('update_credentials', {
       'user_id': userId,
       'token':   token,
