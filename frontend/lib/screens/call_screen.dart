@@ -190,7 +190,7 @@ class _CallScreenState extends State<CallScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: _purple.withOpacity(0.3), width: 12),
+                        color: _purple.withValues(alpha: 0.3), width: 12),
                   ),
                 ),
                 Container(
@@ -198,7 +198,7 @@ class _CallScreenState extends State<CallScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: _purple.withOpacity(0.5), width: 6),
+                        color: _purple.withValues(alpha: 0.5), width: 6),
                   ),
                 ),
                 CircleAvatar(
@@ -230,15 +230,15 @@ class _CallScreenState extends State<CallScreen> {
               padding: const EdgeInsets.symmetric(
                   horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.call, color: Colors.white54, size: 14),
-                  const SizedBox(width: 4),
-                  const Text('Voice Call',
+                  Icon(Icons.call, color: Colors.white54, size: 14),
+                  SizedBox(width: 4),
+                  Text('Voice Call',
                       style:
                           TextStyle(color: Colors.white54, fontSize: 12)),
                 ],
@@ -261,7 +261,7 @@ class _CallScreenState extends State<CallScreen> {
           icon:  _muted ? Icons.mic_off_rounded : Icons.mic_rounded,
           label: _muted ? 'Unmute' : 'Mute',
           color: _muted ? Colors.white : Colors.white,
-          bg:    _muted ? Colors.red.withOpacity(0.8) : Colors.white24,
+          bg:    _muted ? Colors.red.withValues(alpha: 0.8) : Colors.white24,
           onTap: () {
             setState(() => _muted = !_muted);
             widget.callService.toggleMute(_muted);
@@ -283,7 +283,7 @@ class _CallScreenState extends State<CallScreen> {
             label: _cameraOff ? 'Cam Off' : 'Cam On',
             color: Colors.white,
             bg: _cameraOff
-                ? Colors.red.withOpacity(0.8)
+                ? Colors.red.withValues(alpha: 0.8)
                 : Colors.white24,
             onTap: () {
               setState(() => _cameraOff = !_cameraOff);

@@ -208,7 +208,7 @@ class _PulseRingState extends State<PulseRing>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: widget.color.withOpacity(opacity), width: 3),
+                        color: widget.color.withValues(alpha: opacity), width: 3),
                   ),
                 ),
               ),

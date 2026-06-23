@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants.dart';
 
@@ -22,14 +23,12 @@ class ApiService {
             body: jsonEncode({'username': username, 'password': password}),
           )
           .timeout(const Duration(seconds: 10));
-      print('Login status: ${res.statusCode}');
-      print('Login body:   ${res.body}');
       if (res.statusCode == 200 || res.statusCode == 201) {
         return Map<String, dynamic>.from(jsonDecode(res.body));
       }
-      return {'error': 'Server error ${res.statusCode}: ${res.body}'};
+      return {'error': 'Server error ${res.statusCode}'};
     } catch (e) {
-      print('Login error: $e');
+      debugPrint('Login error: $e');
       return {'error': e.toString()};
     }
   }
@@ -43,19 +42,17 @@ class ApiService {
             headers: _headers(),
             body: jsonEncode({
               'username': username,
-              'phone': phone,
+              'phone':    phone,
               'password': password,
             }),
           )
           .timeout(const Duration(seconds: 10));
-      print('Register status: ${res.statusCode}');
-      print('Register body:   ${res.body}');
       if (res.statusCode == 200 || res.statusCode == 201) {
         return Map<String, dynamic>.from(jsonDecode(res.body));
       }
-      return {'error': 'Server error ${res.statusCode}: ${res.body}'};
+      return {'error': 'Server error ${res.statusCode}'};
     } catch (e) {
-      print('Register error: $e');
+      debugPrint('Register error: $e');
       return {'error': e.toString()};
     }
   }
@@ -68,9 +65,9 @@ class ApiService {
             headers: _headers(token: token),
           )
           .timeout(const Duration(seconds: 10));
-      return jsonDecode(res.body);
+      return jsonDecode(res.body) as List;
     } catch (e) {
-      print('Get users error: $e');
+      debugPrint('Get users error: $e');
       return [];
     }
   }
@@ -83,9 +80,9 @@ class ApiService {
             headers: _headers(token: token),
           )
           .timeout(const Duration(seconds: 10));
-      return jsonDecode(res.body);
+      return jsonDecode(res.body) as List;
     } catch (e) {
-      print('Get rooms error: $e');
+      debugPrint('Get rooms error: $e');
       return [];
     }
   }
@@ -102,7 +99,7 @@ class ApiService {
           .timeout(const Duration(seconds: 10));
       return Map<String, dynamic>.from(jsonDecode(res.body));
     } catch (e) {
-      print('Get/create room error: $e');
+      debugPrint('Get/create room error: $e');
       return {};
     }
   }
@@ -115,9 +112,9 @@ class ApiService {
             headers: _headers(token: token),
           )
           .timeout(const Duration(seconds: 10));
-      return jsonDecode(res.body);
+      return jsonDecode(res.body) as List;
     } catch (e) {
-      print('Get messages error: $e');
+      debugPrint('Get messages error: $e');
       return [];
     }
   }
@@ -132,11 +129,9 @@ class ApiService {
             body: jsonEncode({'content': content}),
           )
           .timeout(const Duration(seconds: 10));
-      print('Send message status: ${res.statusCode}');
-      print('Send message body:   ${res.body}');
       return Map<String, dynamic>.from(jsonDecode(res.body));
     } catch (e) {
-      print('Send message error: $e');
+      debugPrint('Send message error: $e');
       return {};
     }
   }

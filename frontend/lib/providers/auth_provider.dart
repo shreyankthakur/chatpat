@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
-import '../services/background_service.dart'; // ADD THIS
+import '../services/background_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   String? token;
@@ -14,44 +14,49 @@ class AuthProvider extends ChangeNotifier {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
+
     try {
       final data = await ApiService.login(username, password);
+
       if (data['error'] != null) {
         errorMessage = data['error'].toString();
-        isLoading = false;
-        notifyListeners();
         return false;
       }
+
       if (data['token'] != null && data['user'] != null) {
         token = data['token'].toString();
         user = UserModel.fromJson(Map<String, dynamic>.from(data['user']));
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token!);
         await prefs.setInt('user_id', user!.id);
         await prefs.setString('username', user!.username);
         await prefs.setString('about', user!.about);
 
-        // ADD THIS — tell background service about new credentials
-        await BackgroundService.updateCredentials(
-          userId: user!.id,
-          token:  token!,
-        );
+        // FIX: wrapped in try/catch so a BackgroundService failure
+        // doesn't prevent login from succeeding
+        try {
+          await BackgroundService.updateCredentials(
+            userId: user!.id,
+            token: token!,
+          );
+        } catch (e) {
+          debugPrint('BackgroundService credentials error (login): $e');
+        }
 
-        isLoading = false;
-        notifyListeners();
         return true;
       } else {
         errorMessage = 'Invalid credentials';
-        isLoading = false;
-        notifyListeners();
         return false;
       }
     } catch (e) {
       debugPrint('Login error: $e');
       errorMessage = e.toString();
+      return false;
+    } finally {
+      // FIX: always runs, so isLoading is never stuck as true
       isLoading = false;
       notifyListeners();
-      return false;
     }
   }
 
@@ -59,80 +64,111 @@ class AuthProvider extends ChangeNotifier {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
+
     try {
       final data = await ApiService.register(username, phone, password);
+
       if (data['error'] != null) {
         errorMessage = data['error'].toString();
-        isLoading = false;
-        notifyListeners();
         return false;
       }
+
       if (data['token'] != null && data['user'] != null) {
         token = data['token'].toString();
         user = UserModel.fromJson(Map<String, dynamic>.from(data['user']));
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token!);
         await prefs.setInt('user_id', user!.id);
         await prefs.setString('username', user!.username);
         await prefs.setString('about', user!.about);
 
-        // ADD THIS — tell background service about new credentials
-        await BackgroundService.updateCredentials(
-          userId: user!.id,
-          token:  token!,
-        );
+        try {
+          await BackgroundService.updateCredentials(
+            userId: user!.id,
+            token: token!,
+          );
+        } catch (e) {
+          debugPrint('BackgroundService credentials error (register): $e');
+        }
 
-        isLoading = false;
-        notifyListeners();
         return true;
       } else {
         errorMessage = 'Registration failed. Check your details.';
-        isLoading = false;
-        notifyListeners();
         return false;
       }
     } catch (e) {
       debugPrint('Register error: $e');
       errorMessage = e.toString();
+      return false;
+    } finally {
       isLoading = false;
       notifyListeners();
-      return false;
     }
   }
 
   Future<void> logout() async {
-    token = null;
-    user = null;
-    errorMessage = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    BackgroundService.stop(); // ADD THIS — stop background service on logout
-    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      BackgroundService.stop();
+    } catch (e) {
+      debugPrint('Logout error: $e');
+    } finally {
+      token = null;
+      user = null;
+      errorMessage = null;
+      notifyListeners();
+    }
   }
 
   Future<void> tryAutoLogin() async {
-    final prefs = await SharedPreferences.getInstance();
-    token = prefs.getString('token');
-    if (token != null) {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedToken = prefs.getString('token');
+
+      if (savedToken == null) return; // no saved session
+
       final id       = prefs.getInt('user_id');
       final username = prefs.getString('username');
       final about    = prefs.getString('about') ?? 'Hey there!';
-      if (id != null && username != null) {
-        user = UserModel(
-          id:       id,
-          username: username,
-          phone:    '',
-          about:    about,
-          isOnline: false,
-        );
 
-        // ADD THIS — restore credentials in background service on app restart
+      if (id == null || username == null) {
+        // Partial/corrupt prefs — clear and treat as logged out
+        await prefs.clear();
+        return;
+      }
+
+      token = savedToken;
+      user = UserModel(
+        id:       id,
+        username: username,
+        phone:    '',
+        about:    about,
+        isOnline: false,
+      );
+
+      // FIX: wrapped so a BackgroundService failure doesn't
+      // prevent the user from being restored as logged in
+      try {
         await BackgroundService.updateCredentials(
           userId: user!.id,
           token:  token!,
         );
+      } catch (e) {
+        debugPrint('BackgroundService credentials error (autoLogin): $e');
       }
+    } catch (e) {
+      debugPrint('tryAutoLogin error: $e');
+      token = null;
+      user  = null;
+    } finally {
+      // FIX: always runs — app never stuck on loading screen
+      isLoading = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 }

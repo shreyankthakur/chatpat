@@ -43,7 +43,7 @@ class IncomingCallScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -73,7 +73,7 @@ class IncomingCallScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: _purple.withOpacity(0.2), width: 14),
+                          color: _purple.withValues(alpha: 0.2), width: 14),
                     ),
                   ),
                   Container(
@@ -81,7 +81,7 @@ class IncomingCallScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: _purple.withOpacity(0.4), width: 7),
+                          color: _purple.withValues(alpha: 0.4), width: 7),
                     ),
                   ),
                   CircleAvatar(
@@ -130,7 +130,7 @@ class IncomingCallScreen extends StatelessWidget {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.red.withOpacity(0.4),
+                                color: Colors.red.withValues(alpha: 0.4),
                                 blurRadius: 16,
                                 offset: const Offset(0, 6),
                               ),
@@ -173,7 +173,7 @@ class IncomingCallScreen extends StatelessWidget {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.green.withOpacity(0.4),
+                                color: Colors.green.withValues(alpha: 0.4),
                                 blurRadius: 16,
                                 offset: const Offset(0, 6),
                               ),

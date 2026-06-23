@@ -147,7 +147,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 8,
                     ),
                   ],
@@ -183,7 +183,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             Container(
                               width: 72, height: 72,
                               decoration: BoxDecoration(
-                                color: _purple.withOpacity(0.1),
+                                color: _purple.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.people_outline_rounded,
@@ -226,7 +226,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                       boxShadow: [
                                         BoxShadow(
                                           color:
-                                              Colors.black.withOpacity(0.04),
+                                              Colors.black.withValues(alpha: 0.04),
                                           blurRadius: 8,
                                           offset: const Offset(0, 2),
                                         ),
@@ -290,7 +290,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                       Container(
                                         width: 36, height: 36,
                                         decoration: BoxDecoration(
-                                          color: _purple.withOpacity(0.1),
+                                          color: _purple.withValues(alpha: 0.1),
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(

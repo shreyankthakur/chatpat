@@ -237,7 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Row(children: [
           CircleAvatar(
             radius: 19,
-            backgroundColor: Colors.white.withOpacity(0.25),
+            backgroundColor: Colors.white.withValues(alpha: 0.25),
             child: Text(
               username.isNotEmpty ? username[0].toUpperCase() : '?',
               style: const TextStyle(
@@ -291,7 +291,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         width: 72,
                         height: 72,
                         decoration: BoxDecoration(
-                          color: _purple.withOpacity(0.1),
+                          color: _purple.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.chat_bubble_outline_rounded,
@@ -338,7 +338,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
+                              color: Colors.black.withValues(alpha: 0.06),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),

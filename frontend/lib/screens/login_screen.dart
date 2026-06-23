@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       width: 60, height: 60,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: const Icon(Icons.chat_bubble_rounded,

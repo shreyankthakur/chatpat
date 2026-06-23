@@ -11,26 +11,17 @@ import 'services/background_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Single error handler (was duplicated before)
   FlutterError.onError = (FlutterErrorDetails details) {
     debugPrint('FlutterError: ${details.exceptionAsString()}');
     debugPrint('Stack: ${details.stack}');
   };
-
-  // Use Flutter's guarded runner to prevent hard crashes.
-  FlutterError.onError = (FlutterErrorDetails details) {
-    debugPrint('FlutterError: ${details.exceptionAsString()}');
-    debugPrint('Stack: ${details.stack}');
-  };
-
-  // NOTE: runZonedGuarded requires dart:async; we rely on FlutterError + guarded init below.
 
   if (!kIsWeb) {
-    // Request battery optimization exemption (critical for Samsung)
     try {
       await Permission.ignoreBatteryOptimizations.request();
     } catch (_) {}
 
-    // Request notification permission (Android 13+)
     try {
       await Permission.notification.request();
     } catch (_) {}
@@ -58,6 +49,7 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'chatpat',
@@ -69,6 +61,7 @@ class MyApp extends StatelessWidget {
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
   @override
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
@@ -77,12 +70,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    context.read<AuthProvider>().tryAutoLogin();
+    // FIX: use addPostFrameCallback so context + provider are fully ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AuthProvider>().tryAutoLogin();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final token = context.watch<AuthProvider>().token;
-    return token != null ? const HomeScreen() : const LoginScreen();
+    final auth = context.watch<AuthProvider>();
+
+    // FIX: show loader while tryAutoLogin() is running
+    if (auth.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return auth.token != null ? const HomeScreen() : const LoginScreen();
   }
 }
