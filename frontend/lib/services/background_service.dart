@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +10,7 @@ import 'package:http/http.dart' as http;
 const String _wsCallKey  = 'ws_call_user_id';
 const String _wsTokenKey = 'ws_token';
 const String _lastMsgKey = 'last_msg_id';
-const String _baseUrl    = 'https://chatpat-production.up.railway.app';
+const String _baseUrl    = 'http://192.168.1.85:8000'; // ← your local IP
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
@@ -27,7 +28,7 @@ void onStart(ServiceInstance service) async {
     if (userId == null || token == null) return;
 
     final uri = Uri.parse(
-        'wss://chatpat-production.up.railway.app/ws/call/$userId/?token=$token');
+        'ws://192.168.1.85:8000/ws/call/$userId/?token=$token');
 
     try {
       callChannel = WebSocketChannel.connect(uri);
@@ -172,6 +173,8 @@ class BackgroundService {
   static final _service = FlutterBackgroundService();
 
   static Future<void> init() async {
+    if (kIsWeb) return; // not supported on web
+
     await _service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart:                         onStart,
@@ -179,10 +182,10 @@ class BackgroundService {
         isForegroundMode:                true,
         notificationChannelId:           'chatpat_bg',
         initialNotificationTitle:        'chatpat',
-        initialNotificationContent:      'Listening for calls...',
+        initialNotificationContent:      'Listening for messages...',
         foregroundServiceNotificationId: 99,
       ),
-      iosConfiguration: IosConfiguration(autoStart: true),
+      iosConfiguration: IosConfiguration(autoStart: false),
     );
     await _service.startService();
   }
@@ -191,6 +194,7 @@ class BackgroundService {
     required int    userId,
     required String token,
   }) async {
+    if (kIsWeb) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_wsCallKey,     userId);
     await prefs.setString(_wsTokenKey, token);
@@ -200,7 +204,10 @@ class BackgroundService {
     });
   }
 
-  static void stop() => _service.invoke('stop');
+  static void stop() {
+    if (kIsWeb) return;
+    _service.invoke('stop');
+  }
 
   static Stream<Map<String, dynamic>?> get callEvents =>
       _service.on('call_event');

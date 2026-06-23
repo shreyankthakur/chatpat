@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -5,6 +6,7 @@ class NotificationService {
   static bool _initialized = false;
 
   static Future<void> init() async {
+    if (kIsWeb) return; // not supported on web
     if (_initialized) return;
 
     const android  = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -22,6 +24,7 @@ class NotificationService {
     required String senderName,
     required String message,
   }) async {
+    if (kIsWeb) return;
     await init();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -41,6 +44,7 @@ class NotificationService {
     required String callerName,
     required bool   isVideo,
   }) async {
+    if (kIsWeb) return;
     await init();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -64,6 +68,7 @@ class NotificationService {
   }
 
   static Future<void> cancelCallNotification() async {
+    if (kIsWeb) return;
     await _plugin.cancel(2);
   }
 }
