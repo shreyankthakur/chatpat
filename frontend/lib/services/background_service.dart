@@ -219,4 +219,39 @@ class BackgroundService {
 
     await _service.configure(
       androidConfiguration: AndroidConfiguration(
-        onStart:
+        onStart:                         onStart,
+        autoStart:                       true,
+        isForegroundMode:                true,
+        notificationChannelId:           'chatpat_bg',
+        initialNotificationTitle:        'chatpat',
+        initialNotificationContent:      'Listening for messages...',
+        foregroundServiceNotificationId: 99,
+      ),
+      iosConfiguration: IosConfiguration(autoStart: false),
+    );
+
+    await _service.startService();
+  }
+
+  static Future<void> updateCredentials({
+    required int    userId,
+    required String token,
+  }) async {
+    if (kIsWeb) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_wsCallKey,     userId);
+    await prefs.setString(_wsTokenKey, token);
+    _service.invoke('update_credentials', {
+      'user_id': userId,
+      'token':   token,
+    });
+  }
+
+  static void stop() {
+    if (kIsWeb) return;
+    _service.invoke('stop');
+  }
+
+  static Stream<Map<String, dynamic>?> get callEvents =>
+      _service.on('call_event');
+}
