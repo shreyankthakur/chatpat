@@ -8,8 +8,16 @@ import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.init();   // ADD THIS
-  await BackgroundService.init();     // ADD THIS
+  await NotificationService.init();
+
+  // Background service isn't supported on web.
+  // Prevents the app from crashing on Chrome and lets you see the UI/animations.
+  try {
+    await BackgroundService.init();
+  } catch (_) {
+    // ignore
+  }
+
   runApp(
     ChangeNotifierProvider(create: (_) => AuthProvider(), child: const MyApp()),
   );
@@ -19,16 +27,17 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'chatpat',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(fontFamily: 'Roboto'),
-    home: const AuthWrapper(),
-  );
+        title: 'chatpat',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(fontFamily: 'Roboto'),
+        home: const AuthWrapper(),
+      );
 }
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
-  @override State<AuthWrapper> createState() => _AuthWrapperState();
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
@@ -37,6 +46,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.initState();
     context.read<AuthProvider>().tryAutoLogin();
   }
+
   @override
   Widget build(BuildContext context) {
     final token = context.watch<AuthProvider>().token;
