@@ -15,12 +15,6 @@ class NotificationService {
       onDidReceiveNotificationResponse: (details) {},
     );
 
-    // Request permission (Android 13+)
-    await _plugin
-        .resolvePlatformSpecificImplementation
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-
     _initialized = true;
   }
 
@@ -28,7 +22,7 @@ class NotificationService {
     required String senderName,
     required String message,
   }) async {
-    await init(); // ensure initialized
+    await init();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'messages',
@@ -47,7 +41,7 @@ class NotificationService {
     required String callerName,
     required bool   isVideo,
   }) async {
-    await init(); // ensure initialized
+    await init();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'calls',

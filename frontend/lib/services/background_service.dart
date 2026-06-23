@@ -1,4 +1,4 @@
-=import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -18,16 +18,8 @@ void onStart(ServiceInstance service) async {
   await notifications.initialize(
       const InitializationSettings(android: android));
 
-  // REQUEST PERMISSIONS (Android 13+ and 14+)
-  final androidPlugin = notifications
-      .resolvePlatformSpecificImplementation
-          AndroidFlutterLocalNotificationsPlugin>();
-  await androidPlugin?.requestNotificationsPermission();
-  await androidPlugin?.requestFullScreenIntentPermission(); // Android 14+
-
   WebSocketChannel? callChannel;
 
-  // ── Call WS ───────────────────────────────────────────
   Future<void> connectCallWS() async {
     final prefs  = await SharedPreferences.getInstance();
     final userId = prefs.getInt(_wsCallKey);
@@ -62,8 +54,8 @@ void onStart(ServiceInstance service) async {
                   fullScreenIntent: true,
                   category:         AndroidNotificationCategory.call,
                   playSound:        true,
-                  ongoing:          true,      // stays visible until dismissed
-                  autoCancel:       false,     // don't dismiss on tap
+                  ongoing:          true,
+                  autoCancel:       false,
                 ),
               ),
             );
@@ -90,11 +82,10 @@ void onStart(ServiceInstance service) async {
     }
   }
 
-  // ── Message polling ───────────────────────────────────
   Future<void> pollMessages() async {
-    final prefs      = await SharedPreferences.getInstance();
-    final token      = prefs.getString(_wsTokenKey);
-    final myUserId   = prefs.getInt(_wsCallKey);
+    final prefs    = await SharedPreferences.getInstance();
+    final token    = prefs.getString(_wsTokenKey);
+    final myUserId = prefs.getInt(_wsCallKey);
     if (token == null || myUserId == null) return;
 
     try {
@@ -145,9 +136,7 @@ void onStart(ServiceInstance service) async {
           await prefs.setInt(storedKey, lastMsgId);
         }
       }
-    } catch (_) {
-      // silent fail
-    }
+    } catch (_) {}
   }
 
   await connectCallWS();
@@ -179,7 +168,6 @@ void onStart(ServiceInstance service) async {
   });
 }
 
-// ── public API ─────────────────────────────────────────
 class BackgroundService {
   static final _service = FlutterBackgroundService();
 
@@ -188,10 +176,10 @@ class BackgroundService {
       androidConfiguration: AndroidConfiguration(
         onStart:                         onStart,
         autoStart:                       true,
-        isForegroundMode:                true,   // CHANGED false → true
+        isForegroundMode:                true,
         notificationChannelId:           'chatpat_bg',
         initialNotificationTitle:        'chatpat',
-        initialNotificationContent:      'Listening for calls...',  // CHANGED
+        initialNotificationContent:      'Listening for calls...',
         foregroundServiceNotificationId: 99,
       ),
       iosConfiguration: IosConfiguration(autoStart: true),
