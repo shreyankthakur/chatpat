@@ -20,18 +20,16 @@ class NotificationService {
   }) async {
     if (kIsWeb) return;
     await init();
-    await _plugin.show(
-      1, senderName, message,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'messages', 'Messages',
-          channelDescription: 'New message notifications',
-          importance: Importance.high,
-          priority:   Priority.high,
-          playSound:  true,
-        ),
-      ),
-    );
+    await _plugin.show(1, senderName, message,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'messages', 'Messages',
+            channelDescription: 'New message notifications',
+            importance: Importance.high,
+            priority:   Priority.high,
+            playSound:  true,
+          ),
+        ));
   }
 
   static Future<void> showCallNotification({

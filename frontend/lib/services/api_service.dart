@@ -45,9 +45,6 @@ class ApiService {
               }))
           .timeout(const Duration(seconds: 15));
       print('Register ${res.statusCode}: ${res.body}');
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
-      }
       try {
         return Map<String, dynamic>.from(jsonDecode(res.body));
       } catch (_) {
@@ -80,7 +77,9 @@ class ApiService {
           .timeout(const Duration(seconds: 15));
       final decoded = jsonDecode(res.body);
       if (decoded is List) return decoded;
-      if (decoded is Map && decoded['results'] != null) return decoded['results'];
+      if (decoded is Map && decoded['results'] != null) {
+        return decoded['results'];
+      }
       return [];
     } catch (e) {
       print('Get rooms error: $e');
@@ -106,13 +105,17 @@ class ApiService {
   static Future<List> getMessages(String token, int roomId) async {
     try {
       final res = await http
-          .get(Uri.parse('$BASE_URL/api/chat/rooms/$roomId/messages/'),
+          .get(
+              Uri.parse(
+                  '$BASE_URL/api/chat/rooms/$roomId/messages/'),
               headers: _headers(token: token))
           .timeout(const Duration(seconds: 15));
       print('getMessages ${res.statusCode}: ${res.body}');
       final decoded = jsonDecode(res.body);
       if (decoded is List) return decoded;
-      if (decoded is Map && decoded['results'] != null) return decoded['results'];
+      if (decoded is Map && decoded['results'] != null) {
+        return decoded['results'];
+      }
       return [];
     } catch (e) {
       print('Get messages error: $e');
@@ -130,13 +133,13 @@ class ApiService {
               headers: _headers(token: token),
               body: jsonEncode({'content': content}))
           .timeout(const Duration(seconds: 15));
-      print('Send message ${res.statusCode}: ${res.body}');
+      print('Send ${res.statusCode}: ${res.body}');
       if (res.statusCode == 200 || res.statusCode == 201) {
         return Map<String, dynamic>.from(jsonDecode(res.body));
       }
       return {'error': 'Send failed ${res.statusCode}'};
     } catch (e) {
-      print('Send message error: $e');
+      print('Send error: $e');
       return {'error': e.toString()};
     }
   }

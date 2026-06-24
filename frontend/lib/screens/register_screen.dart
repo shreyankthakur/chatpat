@@ -13,7 +13,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _userCtrl  = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _passCtrl  = TextEditingController();
-  bool _obscure    = true;
+  bool  _obscure   = true;
 
   static const _purple     = Color(0xFF7C4DFF);
   static const _purpleDark = Color(0xFF512DA8);
@@ -36,18 +36,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (_) => const HomeScreen()));
     } else {
-      _snack(auth.errorMessage ?? 'Registration failed.', Colors.redAccent);
+      _snack(auth.errorMessage ?? 'Registration failed.',
+          Colors.redAccent);
     }
   }
 
-  void _snack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content:         Text(msg),
-      backgroundColor: color,
-      behavior:        SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
-  }
+  void _snack(String msg, Color color) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:         Text(msg),
+        backgroundColor: color,
+        behavior:        SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+      ));
 
   @override
   Widget build(BuildContext context) {
@@ -64,12 +65,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 gradient: LinearGradient(
                     colors: [_purpleDark, _purple],
                     begin: Alignment.topLeft,
-                    end: Alignment.bottomRight),
+                    end:   Alignment.bottomRight),
                 borderRadius: BorderRadius.only(
                     bottomLeft:  Radius.circular(40),
                     bottomRight: Radius.circular(40)),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
@@ -79,8 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12)),
                       child: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white, size: 20),
-                    ),
+                          color: Colors.white, size: 20)),
                   ),
                   const SizedBox(height: 24),
                   Container(
@@ -89,21 +90,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(18)),
                     child: const Icon(Icons.person_add_rounded,
-                        color: Colors.white, size: 32),
-                  ),
+                        color: Colors.white, size: 32)),
                   const SizedBox(height: 16),
                   const Text('Create Account',
-                      style: TextStyle(color: Colors.white, fontSize: 32,
-                          fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: Colors.white,
+                          fontSize: 32, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   const Text('Join chatpat today 🎉',
-                      style: TextStyle(color: Colors.white70, fontSize: 15)),
+                      style: TextStyle(
+                          color: Colors.white70, fontSize: 15)),
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Sign Up',
                       style: TextStyle(fontSize: 22,
@@ -111,12 +113,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           color: Color(0xFF1A1A2E))),
                   const SizedBox(height: 6),
                   const Text('Fill in your details to get started',
-                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      style: TextStyle(
+                          color: Colors.grey, fontSize: 13)),
                   const SizedBox(height: 28),
                   _field(controller: _userCtrl, label: 'Username',
                       icon: Icons.person_outline_rounded),
                   const SizedBox(height: 16),
-                  _field(controller: _phoneCtrl, label: 'Phone Number',
+                  _field(controller: _phoneCtrl,
+                      label: 'Phone Number',
                       icon: Icons.phone_outlined,
                       type: TextInputType.phone),
                   const SizedBox(height: 16),
@@ -128,7 +132,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                             color: _purple),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+                        onPressed: () =>
+                            setState(() => _obscure = !_obscure),
                       )),
                   const SizedBox(height: 32),
                   SizedBox(
@@ -151,16 +156,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Text('Already have an account? ',
-                        style: TextStyle(color: Colors.grey)),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Text('Sign In',
-                          style: TextStyle(color: _purple,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ]),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('Already have an account? ',
+                          style: TextStyle(color: Colors.grey)),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Text('Sign In',
+                            style: TextStyle(color: _purple,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -198,7 +206,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               borderSide: BorderSide(color: Colors.grey.shade200)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: _purple, width: 1.5)),
+              borderSide:
+                  const BorderSide(color: _purple, width: 1.5)),
           contentPadding: const EdgeInsets.symmetric(
               horizontal: 16, vertical: 16),
         ),

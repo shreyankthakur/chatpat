@@ -5,7 +5,7 @@ import '../constants.dart';
 
 class WebSocketService {
   WebSocketChannel? _channel;
-  Function(Map)? onMessage;
+  Function(Map<String, dynamic>)? onMessage;
 
   void connect(int roomId, {String? token}) {
     try {
@@ -16,9 +16,9 @@ class WebSocketService {
       );
       debugPrint('WS connecting: $uri');
       _channel = WebSocketChannel.connect(uri);
-      _channel!.ready.then((_) {
-        debugPrint('WS connected room: $roomId');
-      }).catchError((e) => debugPrint('WS connect failed: $e'));
+      _channel!.ready
+          .then((_) => debugPrint('WS connected room: $roomId'))
+          .catchError((e) => debugPrint('WS failed: $e'));
       _channel!.stream.listen(
         (data) {
           try {
@@ -30,8 +30,8 @@ class WebSocketService {
             debugPrint('WS decode error: $e');
           }
         },
-        onError: (e) => debugPrint('WS stream error: $e'),
-        onDone:  () => debugPrint('WS stream done'),
+        onError: (e) => debugPrint('WS error: $e'),
+        onDone:  () => debugPrint('WS done'),
       );
     } catch (e) {
       debugPrint('WS exception: $e');
@@ -40,16 +40,14 @@ class WebSocketService {
 
   void sendMessage(int userId, String content) {
     try {
-      _channel?.sink
-          .add(jsonEncode({'user_id': userId, 'content': content}));
+      _channel?.sink.add(
+          jsonEncode({'user_id': userId, 'content': content}));
     } catch (e) {
       debugPrint('WS send error: $e');
     }
   }
 
   void disconnect() {
-    try {
-      _channel?.sink.close();
-    } catch (_) {}
+    try { _channel?.sink.close(); } catch (_) {}
   }
 }

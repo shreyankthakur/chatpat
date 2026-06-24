@@ -5,15 +5,15 @@ import '../constants.dart';
 
 class CallService {
   WebSocketChannel? _channel;
-  int?  _targetId;
-  int?  _roomId;
+  int? _targetId;
+  int? _roomId;
 
-  Function(Map)?  onCallReceived;
-  Function()?     onCallAccepted;
-  Function()?     onCallRejected;
-  Function()?     onCallEnded;
-  Function(dynamic)? onLocalStream;
-  Function(dynamic)? onRemoteStream;
+  Function(Map<String, dynamic>)? onCallReceived;
+  Function()?                     onCallAccepted;
+  Function()?                     onCallRejected;
+  Function()?                     onCallEnded;
+  Function(dynamic)?              onLocalStream;
+  Function(dynamic)?              onRemoteStream;
 
   void connect(int userId, {String? token}) {
     try {
@@ -27,7 +27,14 @@ class CallService {
       _channel!.ready.then((_) {
         debugPrint('Call WS connected');
         _channel!.stream.listen(
-          (data) => _handleMessage(jsonDecode(data)),
+          (data) {
+            try {
+              _handleMessage(
+                  Map<String, dynamic>.from(jsonDecode(data)));
+            } catch (e) {
+              debugPrint('Call WS decode error: $e');
+            }
+          },
           onError: (e) => debugPrint('Call WS error: $e'),
           onDone:  () => debugPrint('Call WS done'),
         );
@@ -37,33 +44,26 @@ class CallService {
     }
   }
 
-  void _handleMessage(Map msg) {
-    try {
-      switch (msg['type']) {
-        case 'call_received':
-          onCallReceived?.call(msg);
-          break;
-        case 'call_accepted':
-          onCallAccepted?.call();
-          break;
-        case 'call_rejected':
-          onCallRejected?.call();
-          break;
-        case 'call_ended':
-          onCallEnded?.call();
-          break;
-      }
-    } catch (e) {
-      debugPrint('Call handleMessage error: $e');
+  void _handleMessage(Map<String, dynamic> msg) {
+    switch (msg['type']) {
+      case 'call_received':
+        onCallReceived?.call(msg);
+        break;
+      case 'call_accepted':
+        onCallAccepted?.call();
+        break;
+      case 'call_rejected':
+        onCallRejected?.call();
+        break;
+      case 'call_ended':
+        onCallEnded?.call();
+        break;
     }
   }
 
-  void _send(Map data) {
-    try {
-      _channel?.sink.add(jsonEncode(data));
-    } catch (e) {
-      debugPrint('Call send error: $e');
-    }
+  void _send(Map<String, dynamic> data) {
+    try { _channel?.sink.add(jsonEncode(data)); }
+    catch (e) { debugPrint('Call send error: $e'); }
   }
 
   void callUser({
@@ -116,8 +116,6 @@ class CallService {
   Future<void> switchCamera() async {}
 
   void disconnect() {
-    try {
-      _channel?.sink.close();
-    } catch (_) {}
+    try { _channel?.sink.close(); } catch (_) {}
   }
 }

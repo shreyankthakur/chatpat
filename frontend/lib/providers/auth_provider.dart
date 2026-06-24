@@ -6,7 +6,7 @@ import '../services/api_service.dart';
 class AuthProvider extends ChangeNotifier {
   String?    token;
   UserModel? user;
-  bool       isLoading  = false;
+  bool       isLoading    = false;
   String?    errorMessage;
 
   Future<bool> login(String username, String password) async {
@@ -17,13 +17,14 @@ class AuthProvider extends ChangeNotifier {
       final data = await ApiService.login(username, password);
       if (data['error'] != null) {
         errorMessage = data['error'].toString();
-        isLoading = false;
+        isLoading    = false;
         notifyListeners();
         return false;
       }
       if (data['token'] != null && data['user'] != null) {
         token = data['token'].toString();
-        user  = UserModel.fromJson(Map<String, dynamic>.from(data['user']));
+        user  = UserModel.fromJson(
+            Map<String, dynamic>.from(data['user']));
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token',    token!);
         await prefs.setInt('user_id',     user!.id);
@@ -46,21 +47,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String username, String phone, String password) async {
+  Future<bool> register(
+      String username, String phone, String password) async {
     isLoading    = true;
     errorMessage = null;
     notifyListeners();
     try {
-      final data = await ApiService.register(username, phone, password);
-      if (data['error'] != null) {
-        errorMessage = data['error'].toString();
-        isLoading    = false;
-        notifyListeners();
-        return false;
-      }
+      final data =
+          await ApiService.register(username, phone, password);
       if (data['token'] != null && data['user'] != null) {
         token = data['token'].toString();
-        user  = UserModel.fromJson(Map<String, dynamic>.from(data['user']));
+        user  = UserModel.fromJson(
+            Map<String, dynamic>.from(data['user']));
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token',    token!);
         await prefs.setInt('user_id',     user!.id);
@@ -78,6 +76,8 @@ class AuthProvider extends ChangeNotifier {
         errorMessage = data['phone'] is List
             ? data['phone'][0]
             : data['phone'].toString();
+      } else if (data['error'] != null) {
+        errorMessage = data['error'].toString();
       } else {
         errorMessage = 'Registration failed.';
       }

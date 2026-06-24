@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -10,58 +9,31 @@ import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Single error handler (was duplicated before)
-  FlutterError.onError = (FlutterErrorDetails details) {
-    debugPrint('FlutterError: ${details.exceptionAsString()}');
-    debugPrint('Stack: ${details.stack}');
-  };
-
   if (!kIsWeb) {
-    try {
-      await Permission.ignoreBatteryOptimizations.request();
-    } catch (_) {}
-
-    try {
-      await Permission.notification.request();
-    } catch (_) {}
-
-    try {
-      await NotificationService.init();
-    } catch (e) {
-      debugPrint('Notification init error: $e');
-    }
-
-    try {
-      await BackgroundService.init();
-    } catch (e) {
-      debugPrint('Background service init error: $e');
-    }
+    try { await NotificationService.init(); }
+    catch (e) { debugPrint('Notification error: $e'); }
+    try { await BackgroundService.init(); }
+    catch (e) { debugPrint('Background error: $e'); }
   }
-
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
-      child: const MyApp(),
-    ),
-  );
+  runApp(ChangeNotifierProvider(
+    create: (_) => AuthProvider(),
+    child:  const MyApp(),
+  ));
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'chatpat',
+        title:                     'chatpat',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(fontFamily: 'Roboto'),
-        home: const AuthWrapper(),
+        theme:                     ThemeData(fontFamily: 'Roboto'),
+        home:                      const AuthWrapper(),
       );
 }
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
-
   @override
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
@@ -70,25 +42,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // FIX: use addPostFrameCallback so context + provider are fully ready
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<AuthProvider>().tryAutoLogin();
-      }
-    });
+    context.read<AuthProvider>().tryAutoLogin();
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-
-    // FIX: show loader while tryAutoLogin() is running
-    if (auth.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return auth.token != null ? const HomeScreen() : const LoginScreen();
+    final token = context.watch<AuthProvider>().token;
+    return token != null ? const HomeScreen() : const LoginScreen();
   }
 }

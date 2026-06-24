@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.frontend"
-    compileSdk = 34
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -16,11 +16,11 @@ android {
 
     defaultConfig {
         applicationId = "com.example.frontend"
-        minSdk = 21        // ← fixed: was flutter.minSdkVersion (16)
-        targetSdk = 34
+        minSdk = 21
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        multiDexEnabled = true  // ← added
+        multiDexEnabled = true
     }
 
     buildTypes {

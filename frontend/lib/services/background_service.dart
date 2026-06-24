@@ -15,8 +15,8 @@ const String _baseUrl    = 'https://chatpat-production.up.railway.app';
 void onStart(ServiceInstance service) async {
   final notifications = FlutterLocalNotificationsPlugin();
   const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-  await notifications
-      .initialize(const InitializationSettings(android: android));
+  await notifications.initialize(
+      const InitializationSettings(android: android));
 
   Future<void> pollMessages() async {
     try {
@@ -67,9 +67,7 @@ void onStart(ServiceInstance service) async {
           await prefs.setInt(storedKey, lastMsgId);
         }
       }
-    } catch (e) {
-      // silently ignore
-    }
+    } catch (_) {}
   }
 
   await pollMessages();
@@ -78,7 +76,6 @@ void onStart(ServiceInstance service) async {
   });
 
   service.on('stop').listen((_) => service.stopSelf());
-
   service.on('update_credentials').listen((data) async {
     if (data == null) return;
     final prefs = await SharedPreferences.getInstance();

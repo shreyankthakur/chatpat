@@ -50,7 +50,8 @@ class _ChatScreenState extends State<ChatScreen> {
       _ws.connect(widget.roomId, token: token);
       _ws.onMessage = (data) {
         if (!mounted) return;
-        final msg = MessageModel.fromJson(data);
+        final msg = MessageModel.fromJson(
+            Map<String, dynamic>.from(data));
         if (!_msgs.any((m) => m.id == msg.id)) {
           setState(() => _msgs.add(msg));
           _scrollDown();
@@ -83,10 +84,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final data = await ApiService.getMessages(token, widget.roomId);
       if (!mounted) return;
       setState(() {
-        _msgs = data
-            .map((m) => MessageModel.fromJson(
-                Map<String, dynamic>.from(m)))
-            .toList();
+        _msgs = data.map((m) => MessageModel.fromJson(
+            Map<String, dynamic>.from(m))).toList();
       });
       _scrollDown();
     } catch (e) {
@@ -143,7 +142,6 @@ class _ChatScreenState extends State<ChatScreen> {
     if (me == null) return;
     final otherId   = widget.otherUser['id'] as int;
     final otherName = widget.otherUser['username']?.toString() ?? 'User';
-
     widget.callService.callUser(
       callerId:   me.id,
       callerName: me.username,
@@ -151,18 +149,15 @@ class _ChatScreenState extends State<ChatScreen> {
       roomId:     widget.roomId,
       video:      video,
     );
-
-    Navigator.push(context, FadeSlidePageRoute(
-      page: CallScreen(
-        myId:        me.id,
-        otherId:     otherId,
-        roomId:      widget.roomId,
-        otherName:   otherName,
-        isVideo:     video,
-        isCaller:    true,
-        callService: widget.callService,
-      ),
-    ));
+    Navigator.push(context, FadeSlidePageRoute(page: CallScreen(
+      myId:        me.id,
+      otherId:     otherId,
+      roomId:      widget.roomId,
+      otherName:   otherName,
+      isVideo:     video,
+      isCaller:    true,
+      callService: widget.callService,
+    )));
   }
 
   @override
@@ -177,13 +172,12 @@ class _ChatScreenState extends State<ChatScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         titleSpacing: 0,
         title: Row(children: [
-          CircleAvatar(
-            radius: 18,
+          CircleAvatar(radius: 18,
             backgroundColor: _purpleDark,
-            child: Text(username.isNotEmpty ? username[0].toUpperCase() : '?',
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
+            child: Text(
+              username.isNotEmpty ? username[0].toUpperCase() : '?',
+              style: const TextStyle(color: Colors.white,
+                  fontWeight: FontWeight.bold))),
           const SizedBox(width: 10),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(username,
@@ -197,17 +191,14 @@ class _ChatScreenState extends State<ChatScreen> {
         ]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.call_rounded, color: Colors.white),
-            onPressed: () => _startCall(video: false),
-          ),
+              icon: const Icon(Icons.call_rounded, color: Colors.white),
+              onPressed: () => _startCall(video: false)),
           IconButton(
-            icon: const Icon(Icons.videocam_rounded, color: Colors.white),
-            onPressed: () => _startCall(video: true),
-          ),
+              icon: const Icon(Icons.videocam_rounded, color: Colors.white),
+              onPressed: () => _startCall(video: true)),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            onPressed: _loadMessages,
-          ),
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+              onPressed: _loadMessages),
         ],
       ),
       body: Column(children: [
@@ -244,18 +235,16 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width
-                                  * 0.75),
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75),
                           decoration: BoxDecoration(
                             color: isMe
-                                ? const Color(0xFFDCF8C6)
-                                : Colors.white,
+                                ? const Color(0xFFDCF8C6) : Colors.white,
                             borderRadius: BorderRadius.only(
                               topLeft:     const Radius.circular(12),
                               topRight:    const Radius.circular(12),
                               bottomLeft:  Radius.circular(isMe ? 12 : 0),
-                              bottomRight: Radius.circular(isMe ? 0 : 12),
-                            ),
+                              bottomRight: Radius.circular(isMe ? 0 : 12)),
                             boxShadow: const [BoxShadow(
                                 color: Colors.black12, blurRadius: 2)],
                           ),
@@ -274,12 +263,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                   const SizedBox(width: 4),
                                   Icon(
                                     msg.isRead
-                                        ? Icons.done_all
-                                        : Icons.done,
+                                        ? Icons.done_all : Icons.done,
                                     size: 14,
                                     color: msg.isRead
-                                        ? Colors.blue
-                                        : Colors.black45),
+                                        ? Colors.blue : Colors.black45),
                                 ],
                               ]),
                             ],
@@ -300,23 +287,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   color: Colors.grey),
               onPressed: () {},
             ),
-            Expanded(
-              child: TextField(
-                controller: _ctrl,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText:  'Type a message',
-                  filled:    true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                ),
-                onSubmitted: (_) => _send(),
+            Expanded(child: TextField(
+              controller: _ctrl,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText:  'Type a message',
+                filled:    true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
               ),
-            ),
+              onSubmitted: (_) => _send(),
+            )),
             const SizedBox(width: 6),
             GestureDetector(
               onTap: _isSending ? null : _send,
@@ -339,10 +324,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  String _formatTime(String timestamp) {
+  String _formatTime(String ts) {
     try {
       return DateFormat('HH:mm').format(
-          DateTime.parse(timestamp).toLocal());
+          DateTime.parse(ts).toLocal());
     } catch (_) { return ''; }
   }
 }
