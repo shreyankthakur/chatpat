@@ -12,22 +12,24 @@ class ApiService {
     return h;
   }
 
+  static dynamic _decode(http.Response res) {
+    final body = res.body.trim();
+    if (body.isEmpty) return null;
+    try { return jsonDecode(body); } catch (_) { return null; }
+  }
+
   static Future<Map<String, dynamic>> login(
       String username, String password) async {
     try {
       final res = await http
           .post(Uri.parse('$BASE_URL/api/auth/login/'),
               headers: _headers(),
-              body: jsonEncode(
-                  {'username': username, 'password': password}))
+              body: jsonEncode({'username': username, 'password': password}))
           .timeout(const Duration(seconds: 15));
-      print('Login ${res.statusCode}: ${res.body}');
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
-      }
-      return {'error': 'Server error ${res.statusCode}'};
+      final data = _decode(res);
+      if (data == null) return {'error': 'Empty response'};
+      return Map<String, dynamic>.from(data);
     } catch (e) {
-      print('Login error: $e');
       return {'error': e.toString()};
     }
   }
@@ -44,14 +46,10 @@ class ApiService {
                 'password': password,
               }))
           .timeout(const Duration(seconds: 15));
-      print('Register ${res.statusCode}: ${res.body}');
-      try {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
-      } catch (_) {
-        return {'error': 'Server error ${res.statusCode}'};
-      }
+      final data = _decode(res);
+      if (data == null) return {'error': 'Empty response'};
+      return Map<String, dynamic>.from(data);
     } catch (e) {
-      print('Register error: $e');
       return {'error': e.toString()};
     }
   }
@@ -62,9 +60,12 @@ class ApiService {
           .get(Uri.parse('$BASE_URL/api/auth/users/'),
               headers: _headers(token: token))
           .timeout(const Duration(seconds: 15));
-      return jsonDecode(res.body);
+      final data = _decode(res);
+      if (data == null) return [];
+      if (data is List) return data;
+      if (data is Map && data['results'] != null) return data['results'];
+      return [];
     } catch (e) {
-      print('Get users error: $e');
       return [];
     }
   }
@@ -75,14 +76,12 @@ class ApiService {
           .get(Uri.parse('$BASE_URL/api/chat/rooms/'),
               headers: _headers(token: token))
           .timeout(const Duration(seconds: 15));
-      final decoded = jsonDecode(res.body);
-      if (decoded is List) return decoded;
-      if (decoded is Map && decoded['results'] != null) {
-        return decoded['results'];
-      }
+      final data = _decode(res);
+      if (data == null) return [];
+      if (data is List) return data;
+      if (data is Map && data['results'] != null) return data['results'];
       return [];
     } catch (e) {
-      print('Get rooms error: $e');
       return [];
     }
   }
@@ -95,9 +94,10 @@ class ApiService {
               headers: _headers(token: token),
               body: jsonEncode({'user_id': userId}))
           .timeout(const Duration(seconds: 15));
-      return Map<String, dynamic>.from(jsonDecode(res.body));
+      final data = _decode(res);
+      if (data == null) return {};
+      return Map<String, dynamic>.from(data);
     } catch (e) {
-      print('Get/create room error: $e');
       return {};
     }
   }
@@ -105,20 +105,15 @@ class ApiService {
   static Future<List> getMessages(String token, int roomId) async {
     try {
       final res = await http
-          .get(
-              Uri.parse(
-                  '$BASE_URL/api/chat/rooms/$roomId/messages/'),
+          .get(Uri.parse('$BASE_URL/api/chat/rooms/$roomId/messages/'),
               headers: _headers(token: token))
           .timeout(const Duration(seconds: 15));
-      print('getMessages ${res.statusCode}: ${res.body}');
-      final decoded = jsonDecode(res.body);
-      if (decoded is List) return decoded;
-      if (decoded is Map && decoded['results'] != null) {
-        return decoded['results'];
-      }
+      final data = _decode(res);
+      if (data == null) return [];
+      if (data is List) return data;
+      if (data is Map && data['results'] != null) return data['results'];
       return [];
     } catch (e) {
-      print('Get messages error: $e');
       return [];
     }
   }
@@ -128,18 +123,14 @@ class ApiService {
     try {
       final res = await http
           .post(
-              Uri.parse(
-                  '$BASE_URL/api/chat/rooms/$roomId/messages/send/'),
+              Uri.parse('$BASE_URL/api/chat/rooms/$roomId/messages/send/'),
               headers: _headers(token: token),
               body: jsonEncode({'content': content}))
           .timeout(const Duration(seconds: 15));
-      print('Send ${res.statusCode}: ${res.body}');
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        return Map<String, dynamic>.from(jsonDecode(res.body));
-      }
-      return {'error': 'Send failed ${res.statusCode}'};
+      final data = _decode(res);
+      if (data == null) return {};
+      return Map<String, dynamic>.from(data);
     } catch (e) {
-      print('Send error: $e');
       return {'error': e.toString()};
     }
   }
