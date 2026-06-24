@@ -23,7 +23,8 @@
         android:label="chatpat"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true"> <!-- 🔥 FIX ADDED -->
+        android:usesCleartextTraffic="true">
+
 
         <activity
             android:name=".MainActivity"

@@ -1,221 +1,188 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import 'home_screen.dart';
+import 'register_screen.dart';
 
-/// Simple press animation used across the app.
-class PressScale extends StatefulWidget {
-  final Widget child;
-  final double scaleDown;
-  final Duration duration;
-  final Curve curve;
-  final VoidCallback? onTap;
-  final bool enabled;
-
-  const PressScale({
-    super.key,
-    required this.child,
-    this.scaleDown = 0.96,
-    this.duration = const Duration(milliseconds: 120),
-    this.curve = Curves.easeOut,
-    this.onTap,
-    this.enabled = true,
-  });
-
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
   @override
-  State<PressScale> createState() => _PressScaleState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _PressScaleState extends State<PressScale>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _anim;
+class _LoginScreenState extends State<LoginScreen> {
+  final _userCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  bool _obscure   = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: widget.duration);
-    _anim = Tween<double>(begin: 1, end: widget.scaleDown).animate(
-      CurvedAnimation(parent: _ctrl, curve: widget.curve),
-    );
-  }
+  static const _purple     = Color(0xFF7C4DFF);
+  static const _purpleDark = Color(0xFF512DA8);
+  static const _bg         = Color(0xFFF5F3FF);
 
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _down() {
-    if (!widget.enabled) return;
-    _ctrl.forward();
-  }
-
-  void _up() {
-    if (!widget.enabled) return;
-    _ctrl.reverse();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _down(),
-      onTapUp: (_) => _up(),
-      onTapCancel: _up,
-      onTap: widget.enabled
-          ? () {
-              HapticFeedback.selectionClick();
-              widget.onTap?.call();
-            }
-          : null,
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, child) => Transform.scale(
-          scale: _anim.value,
-          child: child,
-        ),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-/// Fades + slides a child in.
-class FadeSlideIn extends StatelessWidget {
-  final Widget child;
-  final Duration duration;
-  final Curve curve;
-  final double offsetY;
-
-  const FadeSlideIn({
-    super.key,
-    required this.child,
-    this.duration = const Duration(milliseconds: 220),
-    this.curve = Curves.easeOut,
-    this.offsetY = 10,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: 1,
-      duration: duration,
-      curve: curve,
-      child: TweenAnimationBuilder<double>(
-        duration: duration,
-        curve: curve,
-        tween: Tween<double>(begin: offsetY, end: 0),
-        builder: (context, value, child) => Transform.translate(
-          offset: Offset(0, value),
-          child: child,
-        ),
-        child: child,
-      ),
-    );
-  }
-}
-
-/// Shared animated route for nicer page transitions.
-class FadeSlidePageRoute<T> extends PageRouteBuilder<T> {
-  final Widget page;
-
-  FadeSlidePageRoute({
-    required this.page,
-    super.settings,
-    super.transitionDuration,
-  }) : super(
-          pageBuilder: (context, animation, secondaryAnimation) => page,
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final curved =
-                CurvedAnimation(parent: animation, curve: Curves.easeOut);
-            final fade = Tween<double>(begin: 0.0, end: 1.0).animate(curved);
-            final slide =
-                Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-                    .animate(curved);
-            return FadeTransition(
-              opacity: fade,
-              child: SlideTransition(position: slide, child: child),
-            );
-          },
-        );
-}
-
-/// Subtle pulse ring for call status.
-class PulseRing extends StatefulWidget {
-  final bool active;
-  final double size;
-  final Color color;
-  final Duration duration;
-
-  const PulseRing({
-    super.key,
-    required this.active,
-    this.size = 190,
-    this.color = const Color(0xFFF44336),
-    this.duration = const Duration(milliseconds: 1200),
-  });
-
-  @override
-  State<PulseRing> createState() => _PulseRingState();
-}
-
-class _PulseRingState extends State<PulseRing>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: widget.duration);
-    if (widget.active) _ctrl.repeat(reverse: false);
-  }
-
-  @override
-  void didUpdateWidget(covariant PulseRing oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.active && !oldWidget.active) {
-      _ctrl.repeat(reverse: false);
-    } else if (!widget.active && oldWidget.active) {
-      _ctrl.stop();
-      _ctrl.reset();
+  Future<void> _login() async {
+    if (_userCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
+      _snack('Please fill all fields', _purpleDark);
+      return;
+    }
+    final auth = context.read<AuthProvider>();
+    final ok   = await auth.login(
+        _userCtrl.text.trim(), _passCtrl.text.trim());
+    if (!context.mounted) return;
+    if (ok) {
+      Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()));
+    } else {
+      _snack(auth.errorMessage ?? 'Invalid credentials', Colors.redAccent);
     }
   }
 
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+  void _snack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:          Text(msg),
+      backgroundColor:  color,
+      behavior:         SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, child) {
-          final t = _ctrl.value;
-          final scale = 0.92 + t * 0.14;
-          final opacity = widget.active ? (1 - t).clamp(0.0, 1.0) : 0.0;
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              Transform.scale(
-                scale: scale,
-                child: Container(
-                  width: widget.size,
-                  height: widget.size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: widget.color.withValues(alpha: opacity), width: 3),
-                  ),
-                ),
+    final isLoading = context.watch<AuthProvider>().isLoading;
+    return Scaffold(
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(32, 60, 32, 40),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                    colors: [_purpleDark, _purple],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight),
+                borderRadius: BorderRadius.only(
+                    bottomLeft:  Radius.circular(40),
+                    bottomRight: Radius.circular(40)),
               ),
-            ],
-          );
-        },
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 60, height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(18)),
+                    child: const Icon(Icons.chat_bubble_rounded,
+                        color: Colors.white, size: 32),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('chatpat',
+                      style: TextStyle(color: Colors.white, fontSize: 36,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  const Text('Welcome back 👋',
+                      style: TextStyle(color: Colors.white70, fontSize: 16)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Sign In',
+                      style: TextStyle(fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A2E))),
+                  const SizedBox(height: 6),
+                  const Text('Enter your credentials to continue',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  const SizedBox(height: 32),
+                  _field(controller: _userCtrl, label: 'Username',
+                      icon: Icons.person_outline_rounded),
+                  const SizedBox(height: 16),
+                  _field(controller: _passCtrl, label: 'Password',
+                      icon: Icons.lock_outline_rounded,
+                      obscure: _obscure,
+                      suffix: IconButton(
+                        icon: Icon(_obscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                            color: _purple),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      )),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity, height: 54,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _purple,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16))),
+                      onPressed: isLoading ? null : _login,
+                      child: isLoading
+                          ? const SizedBox(width: 24, height: 24,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2.5))
+                          : const Text('Sign In',
+                              style: TextStyle(fontSize: 16,
+                                  fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Text("Don't have an account? ",
+                        style: TextStyle(color: Colors.grey)),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) => const RegisterScreen())),
+                      child: const Text('Register',
+                          style: TextStyle(color: _purple,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String   label,
+    required IconData icon,
+    bool    obscure = false,
+    Widget? suffix,
+    TextInputType type = TextInputType.text,
+  }) =>
+      TextField(
+        controller: controller,
+        obscureText: obscure,
+        keyboardType: type,
+        style: const TextStyle(fontSize: 15),
+        decoration: InputDecoration(
+          labelText:  label,
+          labelStyle: const TextStyle(color: Colors.grey),
+          prefixIcon: Icon(icon, color: _purple, size: 22),
+          suffixIcon: suffix,
+          filled:     true,
+          fillColor:  Colors.white,
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade200)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _purple, width: 1.5)),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16, vertical: 16),
+        ),
+      );
 }

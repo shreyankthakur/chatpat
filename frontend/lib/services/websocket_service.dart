@@ -8,48 +8,43 @@ class WebSocketService {
   Function(Map)? onMessage;
 
   void connect(int roomId, {String? token}) {
-    final uri = Uri.parse('$WS_URL/ws/chat/$roomId/').replace(queryParameters: {
-      if (token != null && token.isNotEmpty) 'token': token,
-    });
-
-    debugPrint('WS connect uri: $uri');
-
-    // Ensure we attach handlers immediately for better diagnostics
     try {
+      final uri = Uri.parse('$WS_URL/ws/chat/$roomId/').replace(
+        queryParameters: {
+          if (token != null && token.isNotEmpty) 'token': token,
+        },
+      );
+      debugPrint('WS connecting: $uri');
       _channel = WebSocketChannel.connect(uri);
-      _channel!.ready.timeout(const Duration(seconds: 10)).then((_) {
-        debugPrint('WS connected (chat room: $roomId)');
-      }).catchError((e) {
-        debugPrint('WS connect failed/timeout (chat room: $roomId): $e');
-      });
-
+      _channel!.ready.then((_) {
+        debugPrint('WS connected room: $roomId');
+      }).catchError((e) => debugPrint('WS connect failed: $e'));
       _channel!.stream.listen(
         (data) {
           try {
-            if (onMessage == null) return;
             final decoded = jsonDecode(data);
-            if (decoded is Map<String, dynamic>) {
-              onMessage!(decoded);
-            } else if (decoded is Map) {
-              onMessage!(Map<String, dynamic>.from(decoded));
-            } else {
-              debugPrint('WS payload not a map (chat room: $roomId): $decoded');
+            if (decoded is Map) {
+              onMessage?.call(Map<String, dynamic>.from(decoded));
             }
           } catch (e) {
-            debugPrint(
-                'WS message decode/handler error (chat room: $roomId): $e');
+            debugPrint('WS decode error: $e');
           }
         },
-        onError: (e) => debugPrint('WS stream error (chat room: $roomId): $e'),
-        onDone: () => debugPrint('WS stream done (chat room: $roomId)'),
+        onError: (e) => debugPrint('WS stream error: $e'),
+        onDone:  () => debugPrint('WS stream done'),
       );
     } catch (e) {
-      debugPrint('WS exception (chat room: $roomId): $e');
+      debugPrint('WS exception: $e');
     }
   }
 
   void sendMessage(int userId, String content) {
-    _channel?.sink.add(jsonEncode({'user_id': userId, 'content': content}));
+    try {
+      _channel?.sink
+          .add(jsonEncode({'user_id': userId, 'content': content}));
+    } catch (e) {
+      debugPrint('WS send error: $e');
+    }
   }
 
   void disconnect() {
