@@ -108,7 +108,7 @@ class BackgroundService {
         androidConfiguration: AndroidConfiguration(
           onStart:                         onStart,
           autoStart:                       true,
-          isForegroundMode:                true,
+          isForegroundMode:                false,
           notificationChannelId:           'chatpat_bg',
           initialNotificationTitle:        'chatpat',
           initialNotificationContent:      'Running...',
