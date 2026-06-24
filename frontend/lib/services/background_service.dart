@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,8 +36,8 @@ void onStart(ServiceInstance service) async {
         final rooms = jsonDecode(res.body) as List;
         for (final room in rooms) {
           try {
-            final roomId  = room['id'] as int;
-            final lastMsg = room['last_message'];
+            final roomId        = room['id'] as int;
+            final lastMsg       = room['last_message'];
             if (lastMsg == null) continue;
 
             final lastMsgId     = lastMsg['id'] as int;
@@ -96,7 +96,7 @@ void onStart(ServiceInstance service) async {
 }
 
 class BackgroundService {
-  static final _service = FlutterBackgroundService();
+  static final _service    = FlutterBackgroundService();
   static bool _initialized = false;
 
   static Future<void> init() async {
