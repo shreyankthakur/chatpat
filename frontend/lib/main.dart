@@ -39,14 +39,47 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  bool _checking = true;
+
   @override
   void initState() {
     super.initState();
-    context.read<AuthProvider>().tryAutoLogin();
+    _autoLogin();
+  }
+
+  Future<void> _autoLogin() async {
+    try {
+      await context.read<AuthProvider>().tryAutoLogin();
+    } catch (e) {
+      debugPrint('AutoLogin error: $e');
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_checking) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF7C4DFF),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 60),
+              SizedBox(height: 16),
+              Text('chatpat',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold)),
+              SizedBox(height: 32),
+              CircularProgressIndicator(color: Colors.white),
+            ],
+          ),
+        ),
+      );
+    }
     final token = context.watch<AuthProvider>().token;
     return token != null ? const HomeScreen() : const LoginScreen();
   }
